@@ -172,7 +172,9 @@ public partial class MainWindow : Window
         var ny = y;
         if (Math.Abs(x - wa.X) <= threshold) nx = wa.X;
         else if (Math.Abs(wa.Right - (x + w)) <= threshold) nx = wa.Right - w;
-        if (Math.Abs(y - wa.Y) <= threshold) ny = wa.Y; // AIMP-стайл: прилип к верхней кромке
+        // Верх: прилипаем, если край у кромки ИЛИ его загнали выше (y <= кромки + порог) —
+        // иначе «упёр за верх» не срабатывал. Клампим к кромке.
+        if (y <= wa.Y + threshold) ny = wa.Y; // AIMP-стайл: прилип к верхней кромке
         else if (Math.Abs(wa.Bottom - (y + h)) <= threshold) ny = wa.Bottom - h;
 
         _snappedTop = ny == wa.Y;

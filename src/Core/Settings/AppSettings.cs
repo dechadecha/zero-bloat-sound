@@ -28,8 +28,8 @@ public sealed class AppSettings
     /// <summary>Глобальные мультимедиа-клавиши клавиатуры.</summary>
     public bool MediaKeys { get; set; } = true;
 
-    /// <summary>ReplayGain-выравнивание громкости по тегам.</summary>
-    public bool ReplayGain { get; set; } = true;
+    /// <summary>ReplayGain/авто-выравнивание громкости. По умолчанию ВЫКЛ (иногда завышает тихие треки).</summary>
+    public bool ReplayGain { get; set; }
 
     /// <summary>Автодотяжка обложек из Cover Art Archive, когда локально их нет.</summary>
     public bool CoverAutoFetch { get; set; } = true;
