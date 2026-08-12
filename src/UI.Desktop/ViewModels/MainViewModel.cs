@@ -1365,8 +1365,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Raise(nameof(OutputDevices));
         var saved = _outputDeviceIndices.IndexOf(_settings.OutputDevice);
         _outputDeviceSelected = saved < 0 ? 0 : saved;
-        if (_settings.OutputDevice > 0 && saved > 0)
-            bass.SetOutputDevice(_settings.OutputDevice);
+        // На старте выводим на нужное устройство ЯВНО: выбранное пользователем, а «Системное по
+        // умолчанию» (-1) → устройство с флагом IsDefault. Без этого BASS-«default» мог открыть
+        // не то (наушники вместо системного вывода).
+        var startupDevice = _settings.OutputDevice > 0
+            ? _settings.OutputDevice
+            : devices.FirstOrDefault(d => d.IsDefault).Index;
+        if (startupDevice > 0) bass.SetOutputDevice(startupDevice);
         Raise(nameof(OutputDeviceSelected));
     }
 
