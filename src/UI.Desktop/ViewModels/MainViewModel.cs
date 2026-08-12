@@ -1721,6 +1721,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         TelemetryDeclineCommand = new RelayCommand(() => ChooseTelemetry(false));
         BackupExportCommand = new RelayCommand(() => _ = BackupExportAsync());
         BackupImportCommand = new RelayCommand(() => _ = BackupImportAsync());
+        SetSleepCommand = new ParamRelayCommand(p => SetSleepTimer(int.TryParse(p?.ToString(), out var m) ? m : 0));
         _engine.RadioMetaChanged += _ =>
         {
             Raise(nameof(MiniTitle)); Raise(nameof(MiniSubtitle));
@@ -1958,18 +1959,28 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string SavePlaylistText => Loc.T("SavePlaylist");
     public string ClearRatingText => Loc.T("Rate");
 
-    /// <summary>Сон-таймер из трея: 0 — выключить.</summary>
+    /// <summary>Сон-таймер из трея/поп-апа: 0 — выключить.</summary>
     public void SetSleepTimer(int minutes)
     {
         if (minutes <= 0)
         {
             Sleep.Cancel();
-            return;
         }
-        // Таймер стреляет из пула потоков — движок трогаем только с UI-потока.
-        Sleep.Start(TimeSpan.FromMinutes(minutes),
-            () => Dispatcher.UIThread.Post(() => _engine.FadeOutAndStop(3000)));
+        else
+        {
+            // Таймер стреляет из пула потоков — движок трогаем только с UI-потока.
+            Sleep.Start(TimeSpan.FromMinutes(minutes),
+                () => Dispatcher.UIThread.Post(() => _engine.FadeOutAndStop(3000)));
+        }
+        Raise(nameof(SleepActive));
+        Raise(nameof(SleepStatusText));
     }
+
+    public ParamRelayCommand SetSleepCommand { get; } = null!;
+    public bool SleepActive => Sleep.IsActive;
+    public string SleepStatusText => Sleep.FiresAt is { } f
+        ? $"Уснёт через {Math.Max(0, (int)Math.Round((f - DateTimeOffset.Now).TotalMinutes))} мин"
+        : "Таймер сна выключен";
 
     // Локализованные подписи для XAML (язык применяется до создания окна).
     public string AppTitle => Loc.T("AppTitle");
@@ -2157,6 +2168,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SyncKaraoke();
         SyncPlayState();
         CheckAlarm();
+        if (Sleep.IsActive) Raise(nameof(SleepStatusText)); // обратный отсчёт сна
     }
 
     // ---- Будильник ----

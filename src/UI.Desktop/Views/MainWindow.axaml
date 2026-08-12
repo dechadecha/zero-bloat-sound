@@ -934,18 +934,6 @@
                     <TextBlock Text="{Binding LookInfoText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="13"
                                TextWrapping="Wrap" LineHeight="22" Margin="0,14,0,0"/>
 
-                    <TextBlock Text="БУДИЛЬНИК" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
-                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,18,0,0"/>
-                    <DockPanel>
-                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding AlarmOn}"/>
-                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Начать играть в" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
-                        <TextBox Text="{Binding AlarmTime}" Width="70" FontSize="13" Watermark="08:00"/>
-                      </StackPanel>
-                    </DockPanel>
-                    <TextBlock Text="Плеер должен быть запущен. Играет текущий плейлист в заданное время." FontSize="12"
-                               Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
-
                     <TextBlock Text="ДАННЫЕ" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
                                Foreground="{DynamicResource ZbsTextMuted}" Margin="0,18,0,0"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -1050,6 +1038,34 @@
             <Button Classes="mode" Classes.active="{Binding LyricsOpen}" Command="{Binding ToggleLyricsCommand}"
                     IsVisible="{Binding IsNowPlaying}" ToolTip.Tip="{Binding TextBtnText}">
               <Path Classes="icoline" Data="{StaticResource IcoText}"/>
+            </Button>
+            <Button Classes="mode" Classes.active="{Binding SleepActive}" ToolTip.Tip="Будильник и таймер сна">
+              <Path Classes="icoline" Data="{StaticResource IcoClock}"/>
+              <Button.Flyout>
+                <Flyout Placement="Top">
+                  <StackPanel Width="252" Spacing="12">
+                    <TextBlock Text="БУДИЛЬНИК" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}"/>
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding AlarmOn}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Играть в" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding AlarmTime}" Width="70" FontSize="13" Watermark="08:00"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <TextBlock Text="ТАЙМЕР СНА" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Button Classes="flat" Content="15" Command="{Binding SetSleepCommand}" CommandParameter="15"/>
+                      <Button Classes="flat" Content="30" Command="{Binding SetSleepCommand}" CommandParameter="30"/>
+                      <Button Classes="flat" Content="60" Command="{Binding SetSleepCommand}" CommandParameter="60"/>
+                      <Button Classes="flat" Content="90" Command="{Binding SetSleepCommand}" CommandParameter="90"/>
+                      <Button Classes="flat" Content="Выкл" Command="{Binding SetSleepCommand}" CommandParameter="0"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding SleepStatusText}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"/>
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
             </Button>
             <Path Classes="icoline" Data="{StaticResource IcoVol}" Width="17" Height="17" VerticalAlignment="Center"/>
             <Slider Width="96" Minimum="0" Maximum="1" Value="{Binding Volume}" VerticalAlignment="Center"/>
