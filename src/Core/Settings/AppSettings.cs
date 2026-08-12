@@ -93,4 +93,7 @@ public sealed class AppSettings
     public string LastfmApiSecret { get; set; } = "";
     public string LastfmSessionKey { get; set; } = "";
     public string LastfmUser { get; set; } = "";
+
+    /// <summary>Загружать плагины из папки plugins рядом с приложением. По умолчанию ВЫКЛ (сторонний код).</summary>
+    public bool PluginsEnabled { get; set; }
 }

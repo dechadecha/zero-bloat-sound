@@ -772,6 +772,13 @@
                     </StackPanel>
                     <TextBlock Text="{Binding LastfmStatus}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"
                                TextWrapping="Wrap"/>
+                    <DockPanel Margin="0,8,0,0">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding PluginsOn}"/>
+                      <TextBlock Text="Плагины: загружать из папки plugins" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock FontSize="12" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"
+                               Text="{Binding PluginCount, StringFormat='Загружено плагинов: {0}. Кладите .dll в папку plugins рядом с приложением. Сторонний код — включайте с осторожностью.'}"/>
                     <TextBlock Text="КАСТИНГ (DLNA)" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
                                Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
                     <StackPanel Orientation="Horizontal" Spacing="8">

@@ -6,7 +6,9 @@ using ZBS.Core.Playback;
 using ZBS.Core.Playlist;
 using ZBS.Core.Settings;
 using ZBS.Library;
+using ZBS.Plugins.Api;
 using ZBS.UI.Desktop.Localization;
+using ZBS.UI.Desktop.Plugins;
 
 namespace ZBS.UI.Desktop.ViewModels;
 
@@ -1076,6 +1078,36 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         });
     }
 
+    // ---- M6: плагины ----
+
+    private readonly PluginHost _plugins = new(
+        typeof(MainViewModel).Assembly.GetName().Version?.ToString() ?? "0");
+
+    /// <summary>Число загруженных плагинов (для статуса в настройках).</summary>
+    public int PluginCount => _plugins.Loaded.Count;
+
+    private static string PluginsDir => System.IO.Path.Combine(AppContext.BaseDirectory, "plugins");
+
+    public bool PluginsOn
+    {
+        get => _settings.PluginsEnabled;
+        set
+        {
+            if (_settings.PluginsEnabled == value) return;
+            _settings.PluginsEnabled = value;
+            Raise();
+            if (value) _plugins.LoadFrom(PluginsDir);
+            else _plugins.UnloadAll();
+            Raise(nameof(PluginCount));
+        }
+    }
+
+    // Снимок трека для плагинов (радио/стоп → null).
+    private PluginTrackInfo? BuildPluginTrack(Track? track) =>
+        track is null || _engine.CurrentIsRadio
+            ? null
+            : new PluginTrackInfo(OverviewTitle, OverviewArtist, null, _engine.DurationSeconds, track.FilePath);
+
     // ---- M6: Last.fm скробблинг ----
 
     private readonly ZBS.Core.Integrations.LastFmScrobbler _lastfm = new();
@@ -1652,6 +1684,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _lastfm.SessionKey = settings.LastfmSessionKey;
         LastfmLoginCommand = new RelayCommand(() => _ = LastfmLoginAsync());
         _engine.TrackPlayedEnough += LastfmScrobble;
+        if (settings.PluginsEnabled) _plugins.LoadFrom(PluginsDir); // M6: general-плагины
         FindCastCommand = new RelayCommand(() => _ = FindCastAsync());
         CastPlayCommand = new RelayCommand(() => _ = CastPlayAsync());
         CastStopCommand = new RelayCommand(() => _ = CastStopAsync());
@@ -2014,6 +2047,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _ = UpdateCoverAsync(track);
         Library?.SetPlayingId(track?.ResumeKey); // зелёные полоски в списке
         ScrollToPlaying?.Invoke();               // список подматывается к играющему (шаффл/по порядку)
+        _plugins.NotifyTrackChanged(BuildPluginTrack(track)); // M6: событие трека плагинам
 
         // M4: ЛЮБОЙ старт видео-трека (в т.ч. повторный клик по нему же) разворачивает Обзор;
         // аудио — просто убирает поверхность.
@@ -2064,7 +2098,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SyncPlayState();
     }
 
-    private void SyncPlayState() => IsPlaying = _engine.State == PlaybackState.Playing;
+    private void SyncPlayState()
+    {
+        IsPlaying = _engine.State == PlaybackState.Playing;
+        _plugins.NotifyPlayingChanged(IsPlaying); // M6: событие состояния плагинам
+    }
 
     private static string Fmt(double seconds)
     {
@@ -2092,6 +2130,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _dlna.Dispose();
         _discord.Dispose();
         _lastfm.Dispose();
+        _plugins.Dispose();
         _remote.Dispose();
         _store.Save(_settings);
         _engine.Dispose();
