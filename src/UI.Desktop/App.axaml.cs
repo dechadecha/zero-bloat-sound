@@ -55,7 +55,7 @@ public partial class App : Application
             }
 
             var library = new LibraryService(SettingsStore.ResolveDirectory());
-            var libraryVm = new LibraryViewModel(library)
+            var libraryVm = new LibraryViewModel(library, settings)
             {
                 FileProber = backend.CanDecode,
             };

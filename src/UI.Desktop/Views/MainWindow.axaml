@@ -150,7 +150,7 @@
                 </Style>
               </TreeView.Styles>
               <TreeView.DataTemplates>
-                <TreeDataTemplate DataType="vm:ArtistNode" ItemsSource="{Binding Albums}">
+                <TreeDataTemplate DataType="vm:ArtistNode" ItemsSource="{Binding Children}">
                   <TextBlock Text="{Binding Header}" FontWeight="SemiBold" FontSize="13"
                              Foreground="{DynamicResource ZbsText}" Margin="0,2"/>
                 </TreeDataTemplate>
@@ -807,6 +807,22 @@
                       <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding PodcastsSectionOn}"/>
                       <TextBlock Text="Подкасты" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
                     </DockPanel>
+                    <TextBlock Text="СТРУКТУРА ДЕРЕВА («Все треки»)" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding Library.GroupByPrimaryArtist}"/>
+                      <TextBlock Text="Склеивать коллаборации по первому артисту" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Text="Выкл — каждый вариант тега («Баста, GUF») отдельной веткой." FontSize="12"
+                               Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    <DockPanel Margin="0,4,0,0">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding Library.TreeShowAlbums}"/>
+                      <TextBlock Text="Уровень альбомов" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Text="Выкл — под артистом сразу все его треки, без захода в альбомы." FontSize="12"
+                               Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
                   </StackPanel>
                   <!-- Эквалайзер: 10 полос + пресеты -->
                   <StackPanel IsVisible="{Binding TileIsEq}" Spacing="16">

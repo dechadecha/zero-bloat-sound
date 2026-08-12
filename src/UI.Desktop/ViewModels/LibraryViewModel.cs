@@ -1,4 +1,5 @@
 using Avalonia.Threading;
+using ZBS.Core.Settings;
 using ZBS.Library;
 using ZBS.UI.Desktop.Localization;
 
@@ -32,19 +33,23 @@ public sealed class LibRow : ViewModelBase
     public bool NotPlaying => !_playing;
 }
 
-/// <summary>Узел-артист в дереве медиатеки (Артист → Альбомы → треки).</summary>
+/// <summary>
+/// Узел-артист. Children — либо AlbumNode (с уровнем альбомов), либо сразу LibraryTrack
+/// (уровень альбомов выключен). Tracks — плоский список всех треков артиста для воспроизведения.
+/// </summary>
 public sealed class ArtistNode : ViewModelBase
 {
     private bool _expanded;
-    public ArtistNode(string name, IReadOnlyList<AlbumNode> albums)
+    public ArtistNode(string name, IReadOnlyList<object> children, IReadOnlyList<LibraryTrack> tracks)
     {
         Name = name;
-        Albums = albums;
-        TrackCount = albums.Sum(a => a.Tracks.Count);
+        Children = children;
+        Tracks = tracks;
     }
     public string Name { get; }
-    public IReadOnlyList<AlbumNode> Albums { get; }
-    public int TrackCount { get; }
+    public IReadOnlyList<object> Children { get; }
+    public IReadOnlyList<LibraryTrack> Tracks { get; }
+    public int TrackCount => Tracks.Count;
     public string Header => $"{Name}  ·  {TrackCount}";
     public bool IsExpanded { get => _expanded; set => Set(ref _expanded, value); }
 }
@@ -68,6 +73,7 @@ public sealed class AlbumNode : ViewModelBase
 public sealed class LibraryViewModel : ViewModelBase
 {
     private readonly LibraryService _library;
+    private readonly AppSettings? _settings;
     private string _query = "";
     private string _status = "";
     private int _selectedIndex = -1;
@@ -123,56 +129,103 @@ public sealed class LibraryViewModel : ViewModelBase
         RebuildTree();
     }
 
-    // ---- Дерево Артист → Альбом → треки ----
+    // ---- Дерево медиатеки ----
 
     public IReadOnlyList<ArtistNode> Tree { get; private set; } = Array.Empty<ArtistNode>();
 
     private bool _showTree = true;
+    private bool _groupByPrimary = true;
+    private bool _showAlbums = true;
+
     /// <summary>Режим отображения: дерево (по умолчанию) или плоский список.</summary>
     public bool ShowTree
     {
         get => _showTree;
-        set { if (Set(ref _showTree, value)) { Raise(nameof(ShowFlat)); Raise(nameof(TreeToggleText)); _ = RunSearchAsync(); } }
+        set
+        {
+            if (!Set(ref _showTree, value)) return;
+            if (_settings is not null) _settings.LibraryTreeView = value;
+            Raise(nameof(ShowFlat)); Raise(nameof(TreeToggleText));
+            _ = RunSearchAsync();
+        }
     }
     public bool ShowFlat => !_showTree;
     public string TreeToggleText => _showTree ? "☰ Дерево" : "≣ Список";
 
-    private static string Norm(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s!.Trim();
+    /// <summary>Группировать коллаборации по первому артисту («Баста, GUF» → «Баста»). Иначе — точно по тегу.</summary>
+    public bool GroupByPrimaryArtist
+    {
+        get => _groupByPrimary;
+        set { if (Set(ref _groupByPrimary, value)) { if (_settings is not null) _settings.TreeGroupByPrimaryArtist = value; RebuildTree(); } }
+    }
+
+    /// <summary>Показывать уровень альбомов. Выкл — под артистом сразу все треки.</summary>
+    public bool TreeShowAlbums
+    {
+        get => _showAlbums;
+        set { if (Set(ref _showAlbums, value)) { if (_settings is not null) _settings.TreeShowAlbums = value; RebuildTree(); } }
+    }
+
+    private static string Dash(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s!.Trim();
 
     private void RebuildTree()
     {
         var cmp = StringComparer.CurrentCultureIgnoreCase;
+
+        // Ключ группировки артиста: по первому артисту (+ склейка написаний) или точно по тегу.
+        string KeyOf(LibraryTrack t)
+        {
+            var artist = Dash(t.Artist);
+            if (artist == "—") return "—";
+            if (!_groupByPrimary) return artist; // точно по тегу
+            var primary = MetadataResolver.PrimaryArtist(artist);
+            var key = MetadataResolver.ArtistKey(primary);
+            return key.Length > 0 ? key : primary;
+        }
+
         Tree = Results
-            .GroupBy(t => Norm(t.Artist))
-            .OrderBy(g => g.Key, cmp)
-            .Select(g => new ArtistNode(g.Key,
-                g.GroupBy(t => Norm(t.Album))
-                 .OrderBy(a => a.Key, cmp)
-                 .Select(a => new AlbumNode(a.Key,
-                     a.OrderBy(x => x.Title ?? x.Display, cmp).ToList()))
-                 .ToList()))
+            .GroupBy(KeyOf)
+            .Select(g =>
+            {
+                // Каноничное имя артиста — самое частое написание в группе.
+                var name = _groupByPrimary
+                    ? g.GroupBy(t => MetadataResolver.PrimaryArtist(Dash(t.Artist)) is { Length: > 0 } p ? p : Dash(t.Artist))
+                       .OrderByDescending(z => z.Count()).ThenBy(z => z.Key, cmp).First().Key
+                    : g.Key;
+                var flat = g.OrderBy(t => Dash(t.Album), cmp).ThenBy(t => t.Title ?? t.Display, cmp).ToList();
+                IReadOnlyList<object> children = _showAlbums
+                    ? g.GroupBy(t => Dash(t.Album)).OrderBy(a => a.Key, cmp)
+                       .Select(a => (object)new AlbumNode(a.Key, a.OrderBy(x => x.Title ?? x.Display, cmp).ToList()))
+                       .ToList()
+                    : flat.Cast<object>().ToList();
+                return new ArtistNode(name, children, flat);
+            })
+            .OrderBy(n => n.Name, cmp)
             .ToList();
+
         // При активном поиске с немногими попаданиями — раскрываем, чтобы найденное было сразу видно.
         if (!string.IsNullOrWhiteSpace(Query) && Tree.Count <= 15)
             foreach (var ar in Tree)
             {
                 ar.IsExpanded = true;
-                if (ar.Albums.Count <= 6) foreach (var al in ar.Albums) al.IsExpanded = true;
+                foreach (var al in ar.Children.OfType<AlbumNode>().Take(6)) al.IsExpanded = true;
             }
         Raise(nameof(Tree));
     }
 
-    /// <summary>Двойной клик по треку в дереве — играть его альбом с этого места.</summary>
+    /// <summary>Двойной клик по треку в дереве — играть с этого места (альбом либо весь артист).</summary>
     public void PlayTreeTrack(LibraryTrack track)
     {
         foreach (var ar in Tree)
-            foreach (var al in ar.Albums)
+        {
+            // Уровень альбомов включён — играем альбом трека.
+            foreach (var al in ar.Children.OfType<AlbumNode>())
                 for (var i = 0; i < al.Tracks.Count; i++)
-                    if (al.Tracks[i].Id == track.Id)
-                    {
-                        PlayRequested?.Invoke(al.Tracks, i);
-                        return;
-                    }
+                    if (al.Tracks[i].Id == track.Id) { PlayRequested?.Invoke(al.Tracks, i); return; }
+            // Альбомов нет — трек прямо под артистом, играем весь список артиста.
+            for (var i = 0; i < ar.Tracks.Count; i++)
+                if (ar.Tracks[i].Id == track.Id) { PlayRequested?.Invoke(ar.Tracks, i); return; }
+        }
     }
 
     private void UpdatePlayingRowIndex()
@@ -194,9 +247,16 @@ public sealed class LibraryViewModel : ViewModelBase
     public AsyncRelayCommand BrokenCommand { get; }
     public ParamRelayCommand RateCommand { get; }
 
-    public LibraryViewModel(LibraryService library)
+    public LibraryViewModel(LibraryService library, AppSettings? settings = null)
     {
         _library = library;
+        _settings = settings;
+        if (settings is not null)
+        {
+            _showTree = settings.LibraryTreeView;
+            _groupByPrimary = settings.TreeGroupByPrimaryArtist;
+            _showAlbums = settings.TreeShowAlbums;
+        }
         AddFolderCommand = new AsyncRelayCommand(AddFolderAsync, ex => Status = ex.Message);
         RemoveFolderCommand = new AsyncRelayCommand(RemoveFolderAsync, ex => Status = ex.Message);
         RescanCommand = new AsyncRelayCommand(() => ScanAsync(), ex => Status = ex.Message);

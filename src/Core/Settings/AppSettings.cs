@@ -96,4 +96,14 @@ public sealed class AppSettings
 
     /// <summary>Загружать плагины из папки plugins рядом с приложением. По умолчанию ВЫКЛ (сторонний код).</summary>
     public bool PluginsEnabled { get; set; }
+
+    // ── Медиатека: вид «Все треки» ──
+    /// <summary>Показывать дерево (Артист→Альбом→треки) вместо плоского списка.</summary>
+    public bool LibraryTreeView { get; set; } = true;
+
+    /// <summary>Группировать коллаборации по ПЕРВОМУ артисту («Баста, GUF» → «Баста»). Иначе — точно по тегу.</summary>
+    public bool TreeGroupByPrimaryArtist { get; set; } = true;
+
+    /// <summary>Уровень альбомов в дереве. Выкл — под артистом сразу все треки.</summary>
+    public bool TreeShowAlbums { get; set; } = true;
 }

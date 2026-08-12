@@ -87,4 +87,25 @@ public class MetadataResolverTests
             P("Папка", "x.mp3"), Root, WithArtist("Настоящий Артист", "Песня"));
         Assert.Equal("Настоящий Артист", artist);
     }
+
+    [Theory]
+    [InlineData("Баста, GUF", "Баста")]
+    [InlineData("Баста feat Бандерос", "Баста")]
+    [InlineData("Ария, Udo Dirkschneider", "Ария")]
+    [InlineData("5sta Family & DJ Pankratov", "5sta Family")]
+    [InlineData("Гарри Топор, Тони Раут", "Гарри Топор")]
+    [InlineData("Король и Шут", "Король и Шут")]      // « и » НЕ режем — это имя группы
+    [InlineData("Время и Стекло", "Время и Стекло")]
+    [InlineData("Баста", "Баста")]
+    public void PrimaryArtist_takes_first_of_collab(string tag, string primary)
+    {
+        Assert.Equal(primary, MetadataResolver.PrimaryArtist(tag));
+    }
+
+    [Fact]
+    public void ArtistKey_merges_spelling_variants()
+    {
+        Assert.Equal(MetadataResolver.ArtistKey("БАНД'ЭРОС"), MetadataResolver.ArtistKey("БандЭрос"));
+        Assert.NotEqual(MetadataResolver.ArtistKey("Банда"), MetadataResolver.ArtistKey("БандЭрос"));
+    }
 }

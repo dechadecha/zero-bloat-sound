@@ -130,6 +130,25 @@ public static class MetadataResolver
         return p[root.Length..].Trim('\\').Split('\\', StringSplitOptions.RemoveEmptyEntries);
     }
 
+    // Разделители коллабораций: «Артист, X» / «feat» / «ft» / «&» / «x» / «vs» / «при уч».
+    // НЕ включаем « и » — иначе развалились бы группы-имена («Король и Шут», «Время и Стекло»).
+    private static readonly Regex CollabSep = new(
+        @",\s|\s+feat\.?\b|\s+ft\.?\s|\s+&\s+|\s+x\s+|\s+vs\.?\s+|\s+при\s+уч",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>Основной (первый) артист из тега-коллаборации: «Баста, GUF» → «Баста». Для группировки в дереве.</summary>
+    public static string PrimaryArtist(string? artist)
+    {
+        var a = (artist ?? "").Trim();
+        if (a.Length == 0) return "";
+        var m = CollabSep.Match(a);
+        return m.Success && m.Index > 0 ? a[..m.Index].TrimEnd(' ', ',', '&') : a;
+    }
+
+    /// <summary>Ключ склейки разных написаний одного артиста: «БАНД'ЭРОС» == «БандЭрос».</summary>
+    public static string ArtistKey(string primaryArtist) =>
+        Regex.Replace(primaryArtist.ToLowerInvariant().Replace('ё', 'е'), @"[^0-9a-zа-я]+", "");
+
     private static bool SameArtist(string a, string b) =>
         Norm(a).Equals(Norm(b), StringComparison.Ordinal);
 
