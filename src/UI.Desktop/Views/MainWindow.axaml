@@ -136,6 +136,9 @@
                             ToolTip.Tip="Дерево (Артист → Альбом) или плоский список">
                 <TextBlock Text="{Binding Library.TreeToggleText}" FontSize="11"/>
               </ToggleButton>
+              <ComboBox DockPanel.Dock="Right" Margin="0,0,8,2" FontSize="11.5" MinWidth="150"
+                        ItemsSource="{Binding Library.SortOptions}" SelectedIndex="{Binding Library.SortIndex}"
+                        IsVisible="{Binding Library.ShowFlat}" ToolTip.Tip="Сортировка списка"/>
               <TextBlock Text="{Binding ColHeaderText}" FontSize="10" LetterSpacing="1"
                          Foreground="{DynamicResource ZbsTextFaint}" FontWeight="Bold"/>
             </DockPanel>

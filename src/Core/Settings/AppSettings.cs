@@ -107,6 +107,9 @@ public sealed class AppSettings
     /// <summary>Уровень альбомов в дереве. Выкл — под артистом сразу все треки.</summary>
     public bool TreeShowAlbums { get; set; } = true;
 
+    /// <summary>Сортировка плоского списка: 0 назв.А→Я, 1 назв.Я→А, 2 артист, 3 рейтинг, 4 прослушивания, 5 случайно.</summary>
+    public int LibrarySort { get; set; }
+
     // ── Телеметрия (v1.0): явный выбор при первом запуске, без предвыбора ──
     /// <summary>Пользователь уже сделал выбор по телеметрии (первый запуск пройден).</summary>
     public bool TelemetryPrompted { get; set; }

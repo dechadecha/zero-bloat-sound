@@ -166,6 +166,42 @@ public sealed class LibraryViewModel : ViewModelBase
         set { if (Set(ref _showAlbums, value)) { if (_settings is not null) _settings.TreeShowAlbums = value; RebuildTree(); } }
     }
 
+    // ---- Сортировка плоского списка ----
+
+    private readonly Random _rng = new();
+    private int _sortIndex;
+
+    public IReadOnlyList<string> SortOptions { get; } = new[]
+    {
+        "Название А→Я", "Название Я→А", "Артист", "Рейтинг ↓", "Прослушивания ↓", "Случайно",
+    };
+
+    public int SortIndex
+    {
+        get => _sortIndex;
+        set
+        {
+            if (!Set(ref _sortIndex, value)) return;
+            if (_settings is not null) _settings.LibrarySort = value;
+            _ = RunSearchAsync(); // перезапрос → пересортировка (для «Случайно» — новая перетасовка)
+        }
+    }
+
+    private IReadOnlyList<LibraryTrack> ApplySort(IReadOnlyList<LibraryTrack> items)
+    {
+        var cmp = StringComparer.CurrentCultureIgnoreCase;
+        string Name(LibraryTrack t) => t.Title ?? t.Display;
+        return _sortIndex switch
+        {
+            1 => items.OrderByDescending(Name, cmp).ToList(),
+            2 => items.OrderBy(t => t.Artist ?? "", cmp).ThenBy(Name, cmp).ToList(),
+            3 => items.OrderByDescending(t => t.Rating).ThenBy(Name, cmp).ToList(),
+            4 => items.OrderByDescending(t => t.PlayCount).ThenBy(Name, cmp).ToList(),
+            5 => items.OrderBy(_ => _rng.Next()).ToList(),
+            _ => items.OrderBy(Name, cmp).ToList(),
+        };
+    }
+
     private static string Dash(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s!.Trim();
 
     private void RebuildTree()
@@ -256,6 +292,7 @@ public sealed class LibraryViewModel : ViewModelBase
             _showTree = settings.LibraryTreeView;
             _groupByPrimary = settings.TreeGroupByPrimaryArtist;
             _showAlbums = settings.TreeShowAlbums;
+            _sortIndex = settings.LibrarySort;
         }
         AddFolderCommand = new AsyncRelayCommand(AddFolderAsync, ex => Status = ex.Message);
         RemoveFolderCommand = new AsyncRelayCommand(RemoveFolderAsync, ex => Status = ex.Message);
@@ -401,7 +438,7 @@ public sealed class LibraryViewModel : ViewModelBase
             return;
         }
         if (generation != _searchGeneration) return;
-        Results = found;
+        Results = ApplySort(found);
         Raise(nameof(Results));
         RebuildRows();
         // Вернуть выделение на тот же трек: после оценки/пересканирования список подменился.
