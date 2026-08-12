@@ -7,8 +7,9 @@ public sealed class AppSettings
     /// <summary>"auto" — по языку системы; иначе код языка ("en", "ru", ...).</summary>
     public string Language { get; set; } = "auto";
     public string? LastFolder { get; set; }
-    public double WindowWidth { get; set; } = 520;
-    public double WindowHeight { get; set; } = 640;
+    // Средний размер по умолчанию: не компакт (порог 560) и не на весь экран.
+    public double WindowWidth { get; set; } = 960;
+    public double WindowHeight { get; set; } = 680;
 
     /// <summary>Кроссфейд между треками, сек. 0 — выключен.</summary>
     public double CrossfadeSeconds { get; set; }
