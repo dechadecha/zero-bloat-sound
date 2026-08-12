@@ -10,5 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core\ZBS.Core.csproj" />
     <ProjectReference Include="..\..\src\Library\ZBS.Library.csproj" />
+    <ProjectReference Include="..\..\src\Plugins.Api\ZBS.Plugins.Api.csproj" />
   </ItemGroup>
 </Project>
