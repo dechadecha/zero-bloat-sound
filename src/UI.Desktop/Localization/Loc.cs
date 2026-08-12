@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 
 namespace ZBS.UI.Desktop.Localization;
 
@@ -266,6 +267,47 @@ public static class Loc
         },
     };
 
+    // Человекочитаемые названия языков (для пикера). Пакеты дополняют своим "_name".
+    private static readonly Dictionary<string, string> Names = new()
+    {
+        ["en"] = "English", ["ru"] = "Русский",
+    };
+
+    /// <summary>Язык сменился — вьюхи перечитывают все локализованные строки.</summary>
+    public static event Action? Changed;
+
+    /// <summary>Текущий код языка.</summary>
+    public static string Current => _lang;
+
+    /// <summary>Доступные языки (код, название) — встроенные + подгруженные пакеты.</summary>
+    public static IReadOnlyList<(string Code, string Name)> Available =>
+        Strings.Keys.Select(c => (c, Names.TryGetValue(c, out var n) ? n : c)).ToList();
+
+    /// <summary>
+    /// Языковые пакеты: json-файлы в папке lang рядом с приложением. Формат — плоский словарь
+    /// «ключ: перевод», плюс служебные "_lang" (код) и "_name" (название). Так язык добавляется
+    /// без пересборки: сообщество кладёт uk.json / de.json и т.д.
+    /// </summary>
+    public static void LoadPacks(string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) return;
+        foreach (var file in Directory.EnumerateFiles(directory, "*.json"))
+        {
+            try
+            {
+                var doc = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(file));
+                if (doc is null) continue;
+                var code = doc.GetValueOrDefault("_lang") ?? Path.GetFileNameWithoutExtension(file);
+                var dict = Strings.TryGetValue(code, out var existing) ? existing : new Dictionary<string, string>();
+                foreach (var (k, v) in doc)
+                    if (!k.StartsWith('_')) dict[k] = v;
+                Strings[code] = dict;
+                Names[code] = doc.GetValueOrDefault("_name") ?? code;
+            }
+            catch (Exception) { /* битый пакет — пропускаем, не роняем плеер */ }
+        }
+    }
+
     /// <summary>Применяет язык из настроек. "auto" — язык системы, фолбэк — английский.</summary>
     public static void Apply(string language)
     {
@@ -273,6 +315,7 @@ public static class Loc
             ? CultureInfo.CurrentUICulture.TwoLetterISOLanguageName
             : language;
         _lang = Strings.ContainsKey(lang) ? lang : "en";
+        Changed?.Invoke();
     }
 
     public static string T(string key) =>

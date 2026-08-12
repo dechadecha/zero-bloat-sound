@@ -106,4 +106,16 @@ public sealed class AppSettings
 
     /// <summary>Уровень альбомов в дереве. Выкл — под артистом сразу все треки.</summary>
     public bool TreeShowAlbums { get; set; } = true;
+
+    // ── Телеметрия (v1.0): явный выбор при первом запуске, без предвыбора ──
+    /// <summary>Пользователь уже сделал выбор по телеметрии (первый запуск пройден).</summary>
+    public bool TelemetryPrompted { get; set; }
+    /// <summary>Разрешена ли анонимная телеметрия. По умолчанию ВЫКЛ (privacy-first).</summary>
+    public bool TelemetryEnabled { get; set; }
+
+    // ── Будильник (v1.0) ──
+    /// <summary>Будильник включён (плеер начинает играть в заданное время, если запущен).</summary>
+    public bool AlarmEnabled { get; set; }
+    /// <summary>Время будильника "HH:mm".</summary>
+    public string AlarmTime { get; set; } = "08:00";
 }

@@ -30,6 +30,7 @@ public partial class App : Application
         {
             var store = new SettingsStore();
             var settings = store.Load();
+            Loc.LoadPacks(Path.Combine(AppContext.BaseDirectory, "lang")); // языковые пакеты сообщества
             Loc.Apply(settings.Language);
 
             var backend = new BassAudioBackend

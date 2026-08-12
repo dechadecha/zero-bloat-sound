@@ -1108,6 +1108,42 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ? null
             : new PluginTrackInfo(OverviewTitle, OverviewArtist, null, _engine.DurationSeconds, track.FilePath);
 
+    // ---- Локализация: пикер языка + переключение на лету ----
+
+    private List<string> _langCodes = new();
+    public IReadOnlyList<string> LanguageNames { get; private set; } = Array.Empty<string>();
+
+    private int _langIndex;
+    public int SelectedLanguageIndex
+    {
+        get => _langIndex;
+        set
+        {
+            if (!Set(ref _langIndex, value)) return;
+            if (value < 0 || value >= _langCodes.Count) return;
+            _settings.Language = _langCodes[value];
+            Loc.Apply(_settings.Language); // триггерит Loc.Changed → перечитать все строки
+        }
+    }
+
+    private void InitLanguages()
+    {
+        _langCodes = new List<string> { "auto" };
+        var names = new List<string> { "Авто (система)" };
+        foreach (var (code, name) in Loc.Available) { _langCodes.Add(code); names.Add(name); }
+        LanguageNames = names;
+        _langIndex = Math.Max(0, _langCodes.IndexOf(_settings.Language));
+        Loc.Changed += () => Dispatcher.UIThread.Post(RefreshLocalized);
+    }
+
+    private void RefreshLocalized()
+    {
+        RefreshAllBindings();
+        Library?.RefreshAllBindings();
+        Radio?.RefreshAllBindings();
+        Podcasts?.RefreshAllBindings();
+    }
+
     // ---- M6: Last.fm скробблинг ----
 
     private readonly ZBS.Core.Integrations.LastFmScrobbler _lastfm = new();
@@ -1661,6 +1697,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         var settingsDir = SettingsStore.ResolveDirectory();
         Radio = new RadioViewModel(engine, settings, settingsDir);
         Podcasts = new PodcastsViewModel(engine, settingsDir);
+        InitLanguages(); // пикер языка + подписка на смену
+        TelemetryAcceptCommand = new RelayCommand(() => ChooseTelemetry(true));
+        TelemetryDeclineCommand = new RelayCommand(() => ChooseTelemetry(false));
+        BackupExportCommand = new RelayCommand(() => _ = BackupExportAsync());
+        BackupImportCommand = new RelayCommand(() => _ = BackupImportAsync());
         _engine.RadioMetaChanged += _ =>
         {
             Raise(nameof(MiniTitle)); Raise(nameof(MiniSubtitle));
@@ -2096,6 +2137,87 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Raise(nameof(WaveProgress));
         SyncKaraoke();
         SyncPlayState();
+        CheckAlarm();
+    }
+
+    // ---- Будильник ----
+
+    private DateTime _alarmFiredDate = DateTime.MinValue.Date;
+
+    public bool AlarmOn
+    {
+        get => _settings.AlarmEnabled;
+        set { _settings.AlarmEnabled = value; Raise(); }
+    }
+    public string AlarmTime
+    {
+        get => _settings.AlarmTime;
+        set { _settings.AlarmTime = (value ?? "").Trim(); Raise(); }
+    }
+
+    private void CheckAlarm()
+    {
+        if (!_settings.AlarmEnabled || _alarmFiredDate == DateTime.Now.Date) return;
+        if (!TimeSpan.TryParse(_settings.AlarmTime, out var at)) return;
+        var now = DateTime.Now.TimeOfDay;
+        if (now < at || now >= at.Add(TimeSpan.FromMinutes(1))) return; // окно срабатывания — минута
+        _alarmFiredDate = DateTime.Now.Date; // раз в сутки
+        ActivateRequested?.Invoke();          // поднять окно
+        if (_engine.State != PlaybackState.Playing) _engine.PlayPause(); // старт/резюме
+    }
+
+    // ---- Телеметрия: явный выбор при первом запуске (без предвыбора) ----
+
+    public bool TelemetryPromptVisible => !_settings.TelemetryPrompted;
+    public bool TelemetryOn
+    {
+        get => _settings.TelemetryEnabled;
+        set { _settings.TelemetryEnabled = value; Raise(); _store.Save(_settings); }
+    }
+    public RelayCommand TelemetryAcceptCommand { get; } = null!;
+    public RelayCommand TelemetryDeclineCommand { get; } = null!;
+
+    private void ChooseTelemetry(bool on)
+    {
+        _settings.TelemetryEnabled = on;
+        _settings.TelemetryPrompted = true;
+        _store.Save(_settings);
+        Raise(nameof(TelemetryPromptVisible));
+        Raise(nameof(TelemetryOn));
+    }
+
+    // ---- Бэкап настроек одним файлом ----
+
+    public Func<Task<string?>>? BackupSavePicker { get; set; }
+    public Func<Task<string?>>? BackupOpenPicker { get; set; }
+    public RelayCommand BackupExportCommand { get; } = null!;
+    public RelayCommand BackupImportCommand { get; } = null!;
+
+    private async Task BackupExportAsync()
+    {
+        if (BackupSavePicker is null) return;
+        var path = await BackupSavePicker();
+        if (path is null) return;
+        try
+        {
+            _store.Save(_settings); // выгружаем актуальные настройки перед архивацией
+            SettingsBackup.Export(SettingsStore.ResolveDirectory(), path);
+            StatusText = "Бэкап настроек сохранён";
+        }
+        catch (Exception ex) { StatusText = ex.Message; }
+    }
+
+    private async Task BackupImportAsync()
+    {
+        if (BackupOpenPicker is null) return;
+        var path = await BackupOpenPicker();
+        if (path is null) return;
+        try
+        {
+            var n = SettingsBackup.Import(SettingsStore.ResolveDirectory(), path);
+            StatusText = $"Восстановлено файлов: {n}. Перезапустите приложение для применения.";
+        }
+        catch (Exception ex) { StatusText = ex.Message; }
     }
 
     private void SyncPlayState()

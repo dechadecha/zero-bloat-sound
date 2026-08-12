@@ -876,6 +876,10 @@
 
                   <!-- Внешность: магнит окна + waveform + скины -->
                   <StackPanel IsVisible="{Binding TileIsLook}" Spacing="4">
+                    <TextBlock Text="ЯЗЫК" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}"/>
+                    <ComboBox ItemsSource="{Binding LanguageNames}" SelectedIndex="{Binding SelectedLanguageIndex}"
+                              MinWidth="220" FontSize="13" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                     <DockPanel Margin="0,6">
                       <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding MagnetOn}"/>
                       <StackPanel>
@@ -918,6 +922,32 @@
 
                     <TextBlock Text="{Binding LookInfoText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="13"
                                TextWrapping="Wrap" LineHeight="22" Margin="0,14,0,0"/>
+
+                    <TextBlock Text="БУДИЛЬНИК" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,18,0,0"/>
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding AlarmOn}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Начать играть в" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding AlarmTime}" Width="70" FontSize="13" Watermark="08:00"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <TextBlock Text="Плеер должен быть запущен. Играет текущий плейлист в заданное время." FontSize="12"
+                               Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="ДАННЫЕ" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,18,0,0"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button Classes="flat" Content="Сохранить бэкап…" Command="{Binding BackupExportCommand}"/>
+                      <Button Classes="flat" Content="Восстановить из файла…" Command="{Binding BackupImportCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="Бэкап настроек, избранного радио и подписок подкастов одним .zip-файлом." FontSize="12"
+                               Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    <DockPanel Margin="0,8,0,0">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding TelemetryOn}"/>
+                      <TextBlock Text="Анонимная телеметрия" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
                   </StackPanel>
 
                   <TextBlock IsVisible="{Binding TileIsStub}" Text="{Binding TileStubText}"
@@ -1106,5 +1136,22 @@
          не разрушая HWND. Геометрию рулит code-behind (UpdateVideoOverlay). -->
     <ctl:VideoHost x:Name="VideoSurface" IsVisible="False"
                    IsHitTestVisible="False"/>
+
+    <!-- Первый запуск: явный выбор по телеметрии, без предвыбора -->
+    <Border IsVisible="{Binding TelemetryPromptVisible}" Background="#CC000000">
+      <Border Background="{DynamicResource ZbsSurface1}" CornerRadius="14" Padding="24" MaxWidth="440"
+              HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="{DynamicResource ZbsAccent}" BorderThickness="1">
+        <StackPanel Spacing="14">
+          <TextBlock Text="Анонимная статистика?" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ZbsText}"/>
+          <TextBlock TextWrapping="Wrap" FontSize="13.5" LineHeight="21" Foreground="{DynamicResource ZbsTextMuted}"
+                     Text="Zero-Bloat Sound может отправлять обезличенную статистику использования, чтобы понять, какие функции нужны. Никаких имён файлов, треков и личных данных. Можно изменить в любой момент в настройках."/>
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+            <Button Classes="flat" Content="Не отправлять" Command="{Binding TelemetryDeclineCommand}"/>
+            <Button Classes="flat" Content="Разрешить" Command="{Binding TelemetryAcceptCommand}"
+                    Background="{DynamicResource ZbsAccent}" Foreground="#0D0D12"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Border>
   </Panel>
 </Window>

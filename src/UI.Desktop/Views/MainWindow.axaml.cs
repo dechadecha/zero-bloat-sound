@@ -42,6 +42,8 @@ public partial class MainWindow : Window
             Vm.FolderPicker = PickFolderAsync;
             Vm.PlaylistSavePicker = PickPlaylistSaveAsync;
             Vm.SkinFilesPicker = PickSkinFilesAsync;
+            Vm.BackupSavePicker = PickBackupSaveAsync;
+            Vm.BackupOpenPicker = PickBackupOpenAsync;
             if (Vm.Library is { } lib)
                 lib.FolderPicker = PickFolderAsync;
             Vm.ActivateRequested += BringToFront;
@@ -456,6 +458,27 @@ public partial class MainWindow : Window
             FileTypeChoices = new[] { new FilePickerFileType("Playlist") { Patterns = new[] { "*.m3u8" } } },
         });
         return file?.TryGetLocalPath();
+    }
+
+    private async Task<string?> PickBackupSaveAsync()
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            DefaultExtension = "zip",
+            SuggestedFileName = $"zbs-backup-{DateTime.Now:yyyy-MM-dd}.zip",
+            FileTypeChoices = new[] { new FilePickerFileType("Бэкап ZBS") { Patterns = new[] { "*.zip" } } },
+        });
+        return file?.TryGetLocalPath();
+    }
+
+    private async Task<string?> PickBackupOpenAsync()
+    {
+        var picks = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new FilePickerFileType("Бэкап ZBS") { Patterns = new[] { "*.zip" } } },
+        });
+        return picks.Count > 0 ? picks[0].TryGetLocalPath() : null;
     }
 
     private void Jump_KeyDown(object? sender, KeyEventArgs e)
