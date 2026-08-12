@@ -13,6 +13,7 @@ public sealed class LastFmScrobbler : IDisposable
 {
     private const string ApiRoot = "https://ws.audioscrobbler.com/2.0/";
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private volatile bool _disposed;
 
     public string ApiKey { get; set; } = "";
     public string ApiSecret { get; set; } = "";
@@ -25,7 +26,7 @@ public sealed class LastFmScrobbler : IDisposable
     /// <summary>Логин: обменивает пароль на session key. Возвращает имя пользователя.</summary>
     public async Task<string> AuthAsync(string username, string password, CancellationToken ct)
     {
-        var result = await CallAsync(new Dictionary<string, string>
+        using var result = await CallAsync(new Dictionary<string, string>
         {
             ["method"] = "auth.getMobileSession",
             ["username"] = username,
@@ -46,7 +47,7 @@ public sealed class LastFmScrobbler : IDisposable
 
     private async Task CallSessionAsync(string method, string artist, string track, long? timestamp, CancellationToken ct)
     {
-        if (!Ready || string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(track)) return;
+        if (_disposed || !Ready || string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(track)) return;
         var args = new Dictionary<string, string>
         {
             ["method"] = method,
@@ -55,7 +56,7 @@ public sealed class LastFmScrobbler : IDisposable
             ["sk"] = SessionKey,
         };
         if (timestamp is { } ts) args["timestamp"] = ts.ToString();
-        await CallAsync(args, ct).ConfigureAwait(false);
+        using var _ = await CallAsync(args, ct).ConfigureAwait(false);
     }
 
     /// <summary>Подписанный POST: api_sig = md5(отсортированные параметры + secret), format=json.</summary>
@@ -82,5 +83,9 @@ public sealed class LastFmScrobbler : IDisposable
         return doc;
     }
 
-    public void Dispose() => _http.Dispose();
+    public void Dispose()
+    {
+        _disposed = true; // новые скроблы после этого — no-op; редкий in-flight на выходе безвреден
+        _http.Dispose();
+    }
 }

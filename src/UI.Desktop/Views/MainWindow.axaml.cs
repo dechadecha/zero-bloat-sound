@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using ZBS.UI.Desktop.Controls;
 using ZBS.UI.Desktop.ViewModels;
 
 namespace ZBS.UI.Desktop.Views;
@@ -49,6 +50,7 @@ public partial class MainWindow : Window
             VizPreview.SpectrumSource = Vm.GetSpectrumData;
             VizOverview.SpectrumSource = Vm.GetSpectrumData;
             VizCompactBar.SpectrumSource = Vm.GetSpectrumData;
+            ApplyVizMode((VizMode)Vm.VisualizerMode); // сохранённый режим отрисовки
             FmScale.StationMhz = Vm.Radio.FmStationFreqs; // точки станций на рисованной шкале
             // M4: HWND видеоповерхности — в mpv (если он появился раньше VM, отдадим сохранённый).
             if (VideoSurface.SurfaceHandle != IntPtr.Zero)
@@ -70,6 +72,8 @@ public partial class MainWindow : Window
             };
             // Караоке (.lrc): подсвеченную строку — в центр панели.
             Vm.KaraokeLineChanged += ScrollKaraokeToLine;
+            // Автопрокрутка видимого списка к играющему треку (шаффл/по порядку).
+            Vm.ScrollToPlaying += ScrollListsToPlaying;
             // M3.3: скин-окно.
             Vm.SkinOpenRequested += OpenSkinWindow;
             Vm.SkinCloseRequested += CloseSkinWindowProgrammatically;
@@ -107,6 +111,22 @@ public partial class MainWindow : Window
         QueueList.AddHandler(PointerPressedEvent, ListRightClickSelect, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         // Флайаут жанра закрывается и при клике по УЖЕ выбранному пункту (SelectionChanged тогда молчит).
         GenreList.PointerReleased += (_, _) => GenreBtn.Flyout?.Hide();
+        // Клик по визуализатору — следующий режим отрисовки (столбики → волна → пики → кольцо).
+        VizPreview.PointerPressed += CycleVizMode;
+        VizOverview.PointerPressed += CycleVizMode;
+    }
+
+    private void ApplyVizMode(VizMode mode)
+    {
+        VizPreview.Mode = mode;
+        VizOverview.Mode = mode;
+        VizCompactBar.Mode = mode;
+    }
+
+    private void CycleVizMode(object? sender, PointerPressedEventArgs e)
+    {
+        if (Vm is null) return;
+        ApplyVizMode((VizMode)Vm.CycleVisualizerMode());
     }
 
     private void ListRightClickSelect(object? sender, PointerPressedEventArgs e)
@@ -387,8 +407,22 @@ public partial class MainWindow : Window
         // даблклик по тексту — жест «выделить слово», а не «на весь экран».
         if (e.Source is Visual v && v.FindAncestorOfType<Button>(includeSelf: true) is null
                                  && v.FindAncestorOfType<ListBox>(includeSelf: true) is null
+                                 && v.FindAncestorOfType<SpectrumControl>(includeSelf: true) is null
                                  && v.FindAncestorOfType<ScrollViewer>(includeSelf: true) is null)
             ToggleFullscreen();
+    }
+
+    /// <summary>
+    /// Автопрокрутка к играющему треку: подматываем тот список, что сейчас на экране
+    /// («Все треки» или очередь). Отложенная попытка — на случай, если контейнеры ещё не готовы.
+    /// </summary>
+    private void ScrollListsToPlaying()
+    {
+        if (Vm is null) return;
+        if (QueueList.IsEffectivelyVisible && Vm.PlayingQueueIndex >= 0)
+            QueueList.ScrollIntoView(Vm.PlayingQueueIndex);
+        if (LibraryList.IsEffectivelyVisible && Vm.Library is { PlayingRowIndex: >= 0 } lib)
+            LibraryList.ScrollIntoView(lib.PlayingRowIndex);
     }
 
     /// <summary>Караоке: текущая строка держится в центре панели титров.</summary>
@@ -431,6 +465,13 @@ public partial class MainWindow : Window
     }
 
     private void Library_DoubleTapped(object? sender, RoutedEventArgs e) => Vm?.Library?.PlayFromSelected();
+
+    // Дерево: двойной клик по листу-треку играет его альбом с этого места (клик по узлам — просто раскрытие).
+    private void Tree_DoubleTapped(object? sender, RoutedEventArgs e)
+    {
+        if (LibraryTree.SelectedItem is ZBS.Library.LibraryTrack track)
+            Vm?.Library?.PlayTreeTrack(track);
+    }
 
     // M5: радио и подкасты.
     private void Radio_DoubleTapped(object? sender, RoutedEventArgs e) => Vm?.Radio.PlaySelectedCommand.Execute(null);

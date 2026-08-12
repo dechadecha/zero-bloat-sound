@@ -16,34 +16,50 @@ public sealed class DiscordPresence : IDisposable
     private System.IO.Pipes.NamedPipeClientStream? _pipe;
     private string _appId = "";
     private readonly object _lock = new();
+    private bool _disposed;
+    private DateTime _nextConnectAllowed = DateTime.MinValue; // backoff: не долбим коннект, пока Discord закрыт
 
     public bool IsConnected { get { lock (_lock) return _pipe?.IsConnected == true; } }
 
-    /// <summary>Подключиться к Discord (пробует пайпы discord-ipc-0..9). false — Discord не найден.</summary>
+    /// <summary>
+    /// Задать App ID и попробовать подключиться сейчас (сброс backoff). Возвращает результат коннекта.
+    /// Дальше SetListening/ClearActivity сами переподключаются при обрыве.
+    /// </summary>
     public bool Connect(string appId)
     {
         if (string.IsNullOrWhiteSpace(appId)) return false;
         lock (_lock)
         {
-            Close();
             _appId = appId.Trim();
-            for (var i = 0; i < 10; i++)
-            {
-                try
-                {
-                    var pipe = new System.IO.Pipes.NamedPipeClientStream(".", $"discord-ipc-{i}",
-                        System.IO.Pipes.PipeDirection.InOut);
-                    pipe.Connect(300);
-                    _pipe = pipe;
-                    Send(0, new { v = 1, client_id = _appId }); // handshake
-                    ReadFrame();                                 // READY (или ошибка — узнаем при активности)
-                    return true;
-                }
-                catch (Exception) { /* пайп занят/нет — следующий */ }
-            }
-            _pipe = null;
-            return false;
+            _nextConnectAllowed = DateTime.MinValue; // явный жест пользователя — пробуем немедленно
+            return EnsureConnected();
         }
+    }
+
+    // Гарантирует живой пайп (или false). Всё под _lock — коннект и запись атомарны, гонок check-then-act нет.
+    // Пока Discord закрыт, повторные попытки экономим через backoff (иначе каждый апдейт = ~3 с в цикле пайпов).
+    private bool EnsureConnected()
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(_appId)) return false;
+        if (_pipe?.IsConnected == true) return true;
+        if (DateTime.UtcNow < _nextConnectAllowed) return false;
+        Close();
+        for (var i = 0; i < 10; i++)
+        {
+            try
+            {
+                var pipe = new System.IO.Pipes.NamedPipeClientStream(".", $"discord-ipc-{i}",
+                    System.IO.Pipes.PipeDirection.InOut);
+                pipe.Connect(300);
+                _pipe = pipe;
+                Send(0, new { v = 1, client_id = _appId }); // handshake
+                ReadFrame();                                 // READY (или ошибка — узнаем при активности)
+                return true;
+            }
+            catch (Exception) { Close(); /* пайп занят/нет/завис — следующий */ }
+        }
+        _nextConnectAllowed = DateTime.UtcNow.AddSeconds(30); // Discord не найден — не тревожим 30 с
+        return false;
     }
 
     /// <summary>Показать «Слушает: артист — трек». duration 0 — без таймера (радио/пауза).</summary>
@@ -51,7 +67,7 @@ public sealed class DiscordPresence : IDisposable
     {
         lock (_lock)
         {
-            if (_pipe?.IsConnected != true) return;
+            if (!EnsureConnected()) return;
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             object? timestamps = durationSeconds > 1
                 ? new { start = now - (long)positionSeconds, end = now - (long)positionSeconds + (long)durationSeconds }
@@ -77,6 +93,7 @@ public sealed class DiscordPresence : IDisposable
                         },
                     },
                 });
+                DrainResponse(); // прочитать ответный фрейм Discord — иначе буфер пайпа копится и презенс замерзает
             }
             catch (Exception) { Close(); } // Discord закрыли — не мешаем плееру
         }
@@ -87,7 +104,7 @@ public sealed class DiscordPresence : IDisposable
     {
         lock (_lock)
         {
-            if (_pipe?.IsConnected != true) return;
+            if (_pipe?.IsConnected != true) return; // нет коннекта — и убирать нечего (без backoff-долбёжки)
             try
             {
                 Send(1, new
@@ -96,12 +113,21 @@ public sealed class DiscordPresence : IDisposable
                     nonce = Guid.NewGuid().ToString(),
                     args = new { pid = Environment.ProcessId, activity = (object?)null },
                 });
+                DrainResponse();
             }
             catch (Exception) { Close(); }
         }
     }
 
-    private static string Trunc(string s) => s.Length > 120 ? s[..120] : s.Length < 2 ? s + " " : s;
+    // Читаем и отбрасываем ответный фрейм на каждый SET_ACTIVITY. Если ответа нет (таймаут) — не рвём
+    // коннект: дренаж best-effort, его задача лишь не давать входящему буферу пайпа переполниться.
+    private void DrainResponse()
+    {
+        try { ReadFrame(); } catch (Exception) { /* нет ответа — в буфере и так пусто */ }
+    }
+
+    // Discord требует поля активности длиной 2–128 символов: пустое/односимвольное дополняем до двух.
+    private static string Trunc(string s) => s.Length > 120 ? s[..120] : s.Length < 2 ? (s + "  ")[..2] : s;
 
     private void Send(int op, object payload)
     {
@@ -118,18 +144,27 @@ public sealed class DiscordPresence : IDisposable
     private void ReadFrame()
     {
         var header = new byte[8];
-        var got = _pipe!.Read(header, 0, 8);
-        if (got < 8) return;
+        if (!ReadExact(header, 8)) return;
         var len = BitConverter.ToInt32(header, 4);
         if (len is <= 0 or > 65536) return;
         var body = new byte[len];
+        ReadExact(body, len);
+    }
+
+    // NamedPipeClientStream не поддерживает ReadTimeout — ограничиваем сами: если Discord принял
+    // пайп, но завис и не отвечает, без этого блокирующий Read висел бы вечно (и морозил вызвавший поток).
+    private bool ReadExact(byte[] buf, int len)
+    {
         var read = 0;
         while (read < len)
         {
-            var n = _pipe.Read(body, read, len - read);
+            var task = _pipe!.ReadAsync(buf.AsMemory(read, len - read)).AsTask();
+            if (!task.Wait(2000)) throw new TimeoutException("Discord IPC: нет ответа");
+            var n = task.Result;
             if (n <= 0) break;
             read += n;
         }
+        return read >= len;
     }
 
     private void Close()
@@ -140,6 +175,6 @@ public sealed class DiscordPresence : IDisposable
 
     public void Dispose()
     {
-        lock (_lock) Close();
+        lock (_lock) { _disposed = true; Close(); } // после этого EnsureConnected не воскресит пайп из фоновой задачи
     }
 }

@@ -16,7 +16,7 @@ public sealed class LibraryService : IDisposable
     /// при несовпадении с сохранённой в базе скан ПРИНУДИТЕЛЬНО перечитывает все файлы,
     /// игнорируя mtime — иначе исправления парсинга не применятся к уже просканированному.
     /// </summary>
-    private const string TagReaderVersion = "4";
+    private const string TagReaderVersion = "5";
 
     private readonly LibraryDb _db;
     private readonly object _scanLock = new();
@@ -77,7 +77,7 @@ public sealed class LibraryService : IDisposable
                             tags = TagReader.Read(track.FilePath);
                             fileTagsCache[track.FilePath] = tags;
                         }
-                        batch.Add(BuildRow(track, tags, mtime));
+                        batch.Add(BuildRow(track, tags, mtime, folder));
                         if (batch.Count >= BatchSize)
                         {
                             _db.UpsertMany(batch);
@@ -102,20 +102,24 @@ public sealed class LibraryService : IDisposable
         }
     }
 
-    private static TrackRow BuildRow(Track track, FileTags tags, long mtime)
+    private static TrackRow BuildRow(Track track, FileTags tags, long mtime, string sourceRoot)
     {
         var isSegment = track.IsCueSegment;
         var duration = isSegment
             ? Math.Max(0, (track.EndSeconds ?? tags.DurationSeconds) - track.StartSeconds)
             : tags.DurationSeconds;
+        // Достраиваем артиста/название/альбом из имени файла и структуры папок, когда теги пустые.
+        var (artist, title, album) = MetadataResolver.Resolve(track.FilePath, sourceRoot, tags);
+        // CUE-сегмент несёт собственный заголовок из листа — он приоритетнее выведенного.
+        if (isSegment && track.Title is not null) title = track.Title;
         return new TrackRow(
             Id: track.ResumeKey,
             FilePath: track.FilePath,
             SegStart: track.StartSeconds,
             SegEnd: track.EndSeconds,
-            Title: isSegment ? track.Title ?? tags.Title : tags.Title,
-            Artist: tags.Artist,
-            Album: tags.Album ?? (isSegment ? Path.GetFileNameWithoutExtension(track.FilePath) : null),
+            Title: title,
+            Artist: artist,
+            Album: album ?? (isSegment ? Path.GetFileNameWithoutExtension(track.FilePath) : null),
             Genre: tags.Genre,
             Year: tags.Year,
             DurationSeconds: duration,
@@ -192,7 +196,9 @@ public sealed class LibraryService : IDisposable
             try { mtime = new FileInfo(track.FilePath).LastWriteTimeUtc.Ticks; }
             catch (IOException) { return; }
             var tags = TagReader.Read(track.FilePath);
-            _db.UpsertMany(new[] { BuildRow(track, tags, mtime) });
+            var root = _db.GetFolders().FirstOrDefault(
+                f => track.FilePath.StartsWith(f, StringComparison.OrdinalIgnoreCase)) ?? "";
+            _db.UpsertMany(new[] { BuildRow(track, tags, mtime, root) });
         }
         _db.SetRating(id, rating);
     }

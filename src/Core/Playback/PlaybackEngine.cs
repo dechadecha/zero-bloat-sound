@@ -49,6 +49,8 @@ public sealed class PlaybackEngine : IDisposable
     public event Action<Track>? TrackPlayedEnough;
 
     private bool _playedMarked;
+    private double _accumPlayed;      // фактически наслушано секунд (не позиция — перемотка не считается)
+    private double _lastPollPos = -1; // -1 = ждём первый опрос после смены трека
 
     public double LoopAStart { get; private set; } = -1;
     public double LoopBEnd { get; private set; } = -1;
@@ -295,7 +297,7 @@ public sealed class PlaybackEngine : IDisposable
         if (loaded)
         {
             _active.TrackGainDb = GainFor(track);
-            _playedMarked = false;
+            ResetPlayCounters();
             _crossfadeFailedForTrack = false;
             RestoreResumeIfAny(track);
             _active.Play();
@@ -317,16 +319,28 @@ public sealed class PlaybackEngine : IDisposable
     /// <summary>Трек доиграл до конца сам (не пропущен) — уже на UI-потоке.</summary>
     public event Action<Track>? TrackEndedNaturally;
 
-    /// <summary>Засчитываем прослушивание: доиграл или ушёл после 50% трека.</summary>
+    /// <summary>
+    /// Засчитываем прослушивание по правилу Last.fm: фактически наслушано ≥50% ИЛИ ≥4 минут
+    /// (что раньше). Считаем реально проигранное время (см. Poll), а не позицию — иначе
+    /// перемотка в конец и Next засчитывали бы «полное» прослушивание за секунду.
+    /// </summary>
     private void MarkPlayedIfEnough()
     {
         if (_playedMarked || CurrentTrack is not { } track) return;
         var duration = _active.DurationSeconds;
-        if (duration > 0 && _active.PositionSeconds / duration >= 0.5)
+        if (duration > 0 && (_accumPlayed >= duration * 0.5 || _accumPlayed >= 240))
         {
             _playedMarked = true;
             TrackPlayedEnough?.Invoke(track);
         }
+    }
+
+    /// <summary>Сброс счётчиков прослушивания при смене трека.</summary>
+    private void ResetPlayCounters()
+    {
+        _playedMarked = false;
+        _accumPlayed = 0;
+        _lastPollPos = -1;
     }
 
     public void PlayPause()
@@ -396,6 +410,17 @@ public sealed class PlaybackEngine : IDisposable
     {
         if (_active.State != PlaybackState.Playing) return;
 
+        // Копим фактически наслушанное: только нормальное продвижение (маленький шаг вперёд).
+        // Перемотка/резюме-прыжок дают большой скачок — не засчитываем, просто пересинхроним.
+        var pos = _active.PositionSeconds;
+        if (_lastPollPos >= 0)
+        {
+            var delta = pos - _lastPollPos;
+            if (delta > 0 && delta < 2) _accumPlayed += delta;
+        }
+        _lastPollPos = pos;
+        MarkPlayedIfEnough();
+
         if (AbLoopActive && _active.PositionSeconds >= LoopBEnd)
             _active.PositionSeconds = LoopAStart;
 
@@ -446,7 +471,7 @@ public sealed class PlaybackEngine : IDisposable
                 _resume?.Clear(leaving.ResumeKey);
             _currentIndex = next;
             ++_loadGeneration; // старый конец больше не «окончание»
-            _playedMarked = false;
+            ResetPlayCounters();
             _crossfadeFailedForTrack = false;
             ClearAbLoop();
             TrackChanged?.Invoke(track);
@@ -499,6 +524,9 @@ public sealed class PlaybackEngine : IDisposable
             return;
         }
 
+        // Трек доиграл сам до конца — считаем услышанным всё до финальной позиции (в реальной
+        // игре Poll набрал бы это сам; на естественном конце страхуемся от недобора счётчика).
+        _accumPlayed = Math.Max(_accumPlayed, _active.PositionSeconds);
         MarkPlayedIfEnough();
         if (CurrentTrack is { } finished)
         {

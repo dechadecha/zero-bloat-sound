@@ -46,6 +46,9 @@ public sealed class AppSettings
     /// <summary>Показывать мини-визуализатор в компакт-режиме.</summary>
     public bool VisualizerInCompact { get; set; } = true;
 
+    /// <summary>Режим визуализатора: 0 столбики, 1 волна, 2 сглаж. пики, 3 радиальный.</summary>
+    public int VisualizerMode { get; set; }
+
     /// <summary>Магнитное прилипание окна к краям экрана (вкл. AIMP-стайл верх).</summary>
     public bool MagneticSnap { get; set; } = true;
 

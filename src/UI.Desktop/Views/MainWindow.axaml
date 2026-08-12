@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:ZBS.UI.Desktop.ViewModels"
         xmlns:ctl="using:ZBS.UI.Desktop.Controls"
+        xmlns:lib="using:ZBS.Library"
         x:Class="ZBS.UI.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding AppTitle}"
@@ -126,16 +127,53 @@
               </Button>
             </DockPanel>
 
-            <!-- Заголовок колонок -->
+            <!-- Заголовок колонок + тумблер дерево/список -->
             <DockPanel Grid.Row="1" Grid.Column="0" Margin="14,0,14,0">
               <TextBlock DockPanel.Dock="Right" Text="{Binding ColTimeText}" FontSize="10" LetterSpacing="1"
                          Foreground="{DynamicResource ZbsTextFaint}" FontWeight="Bold"/>
+              <ToggleButton DockPanel.Dock="Right" Classes="flat" Margin="0,0,10,2" Padding="6,2"
+                            IsChecked="{Binding Library.ShowTree}"
+                            ToolTip.Tip="Дерево (Артист → Альбом) или плоский список">
+                <TextBlock Text="{Binding Library.TreeToggleText}" FontSize="11"/>
+              </ToggleButton>
               <TextBlock Text="{Binding ColHeaderText}" FontSize="10" LetterSpacing="1"
                          Foreground="{DynamicResource ZbsTextFaint}" FontWeight="Bold"/>
             </DockPanel>
 
-            <!-- Список -->
+            <!-- Дерево Артист → Альбом → треки -->
+            <TreeView x:Name="LibraryTree" Grid.Row="2" Grid.Column="0" Margin="2,6,0,0" Background="Transparent"
+                      IsVisible="{Binding Library.ShowTree}"
+                      ItemsSource="{Binding Library.Tree}" DoubleTapped="Tree_DoubleTapped">
+              <TreeView.Styles>
+                <Style Selector="TreeViewItem">
+                  <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                </Style>
+              </TreeView.Styles>
+              <TreeView.DataTemplates>
+                <TreeDataTemplate DataType="vm:ArtistNode" ItemsSource="{Binding Albums}">
+                  <TextBlock Text="{Binding Header}" FontWeight="SemiBold" FontSize="13"
+                             Foreground="{DynamicResource ZbsText}" Margin="0,2"/>
+                </TreeDataTemplate>
+                <TreeDataTemplate DataType="vm:AlbumNode" ItemsSource="{Binding Tracks}">
+                  <TextBlock Text="{Binding Header}" FontSize="12.5"
+                             Foreground="{DynamicResource ZbsTextMuted}" Margin="0,1"/>
+                </TreeDataTemplate>
+                <DataTemplate DataType="lib:LibraryTrack">
+                  <DockPanel Margin="0,1">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding DurationText}" FontSize="11"
+                               Foreground="{DynamicResource ZbsTextMuted}" VerticalAlignment="Center" Margin="10,0,2,0"/>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding RatingStars}" FontSize="11"
+                               Foreground="{DynamicResource ZbsAccent}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <TextBlock Text="{Binding DisplayTitle}" FontSize="12.5" TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+                  </DockPanel>
+                </DataTemplate>
+              </TreeView.DataTemplates>
+            </TreeView>
+
+            <!-- Плоский список -->
             <ListBox x:Name="LibraryList" Grid.Row="2" Grid.Column="0" Margin="2,6,0,0" Background="Transparent"
+                     IsVisible="{Binding Library.ShowFlat}"
                      ItemsSource="{Binding Library.Rows}" SelectedIndex="{Binding Library.SelectedIndex}"
                      DoubleTapped="Library_DoubleTapped">
               <ListBox.ContextMenu>

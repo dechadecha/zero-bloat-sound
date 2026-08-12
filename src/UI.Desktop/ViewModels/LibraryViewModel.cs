@@ -32,6 +32,38 @@ public sealed class LibRow : ViewModelBase
     public bool NotPlaying => !_playing;
 }
 
+/// <summary>Узел-артист в дереве медиатеки (Артист → Альбомы → треки).</summary>
+public sealed class ArtistNode : ViewModelBase
+{
+    private bool _expanded;
+    public ArtistNode(string name, IReadOnlyList<AlbumNode> albums)
+    {
+        Name = name;
+        Albums = albums;
+        TrackCount = albums.Sum(a => a.Tracks.Count);
+    }
+    public string Name { get; }
+    public IReadOnlyList<AlbumNode> Albums { get; }
+    public int TrackCount { get; }
+    public string Header => $"{Name}  ·  {TrackCount}";
+    public bool IsExpanded { get => _expanded; set => Set(ref _expanded, value); }
+}
+
+/// <summary>Узел-альбом: список треков.</summary>
+public sealed class AlbumNode : ViewModelBase
+{
+    private bool _expanded;
+    public AlbumNode(string name, IReadOnlyList<LibraryTrack> tracks)
+    {
+        Name = name;
+        Tracks = tracks;
+    }
+    public string Name { get; }
+    public IReadOnlyList<LibraryTrack> Tracks { get; }
+    public string Header => $"{Name}  ·  {Tracks.Count}";
+    public bool IsExpanded { get => _expanded; set => Set(ref _expanded, value); }
+}
+
 /// <summary>Панель медиатеки: папки, скан, живой поиск, браузинг, дубликаты/битые, рейтинги.</summary>
 public sealed class LibraryViewModel : ViewModelBase
 {
@@ -70,19 +102,85 @@ public sealed class LibraryViewModel : ViewModelBase
     public IReadOnlyList<LibRow> Rows { get; private set; } = Array.Empty<LibRow>();
     private string? _playingId;
 
+    /// <summary>Индекс играющего трека в Rows (−1 — нет/не в списке). Для автопрокрутки «Все треки».</summary>
+    public int PlayingRowIndex { get; private set; } = -1;
+
     /// <summary>Отметить играющий трек (Track.ResumeKey == LibraryTrack.Id). Зовёт MainViewModel при смене трека.</summary>
     public void SetPlayingId(string? id)
     {
         if (_playingId == id) return;
         _playingId = id;
-        foreach (var row in Rows)
-            row.Playing = row.T.Id == id; // точечно: коллекция не подменяется, выделение живо
+        for (var i = 0; i < Rows.Count; i++)
+            Rows[i].Playing = Rows[i].T.Id == id; // точечно: коллекция не подменяется, выделение живо
+        UpdatePlayingRowIndex();
     }
 
     private void RebuildRows()
     {
         Rows = Results.Select((t, i) => new LibRow(i + 1, t, t.Id == _playingId)).ToList();
+        UpdatePlayingRowIndex();
         Raise(nameof(Rows));
+        RebuildTree();
+    }
+
+    // ---- Дерево Артист → Альбом → треки ----
+
+    public IReadOnlyList<ArtistNode> Tree { get; private set; } = Array.Empty<ArtistNode>();
+
+    private bool _showTree = true;
+    /// <summary>Режим отображения: дерево (по умолчанию) или плоский список.</summary>
+    public bool ShowTree
+    {
+        get => _showTree;
+        set { if (Set(ref _showTree, value)) { Raise(nameof(ShowFlat)); Raise(nameof(TreeToggleText)); _ = RunSearchAsync(); } }
+    }
+    public bool ShowFlat => !_showTree;
+    public string TreeToggleText => _showTree ? "☰ Дерево" : "≣ Список";
+
+    private static string Norm(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s!.Trim();
+
+    private void RebuildTree()
+    {
+        var cmp = StringComparer.CurrentCultureIgnoreCase;
+        Tree = Results
+            .GroupBy(t => Norm(t.Artist))
+            .OrderBy(g => g.Key, cmp)
+            .Select(g => new ArtistNode(g.Key,
+                g.GroupBy(t => Norm(t.Album))
+                 .OrderBy(a => a.Key, cmp)
+                 .Select(a => new AlbumNode(a.Key,
+                     a.OrderBy(x => x.Title ?? x.Display, cmp).ToList()))
+                 .ToList()))
+            .ToList();
+        // При активном поиске с немногими попаданиями — раскрываем, чтобы найденное было сразу видно.
+        if (!string.IsNullOrWhiteSpace(Query) && Tree.Count <= 15)
+            foreach (var ar in Tree)
+            {
+                ar.IsExpanded = true;
+                if (ar.Albums.Count <= 6) foreach (var al in ar.Albums) al.IsExpanded = true;
+            }
+        Raise(nameof(Tree));
+    }
+
+    /// <summary>Двойной клик по треку в дереве — играть его альбом с этого места.</summary>
+    public void PlayTreeTrack(LibraryTrack track)
+    {
+        foreach (var ar in Tree)
+            foreach (var al in ar.Albums)
+                for (var i = 0; i < al.Tracks.Count; i++)
+                    if (al.Tracks[i].Id == track.Id)
+                    {
+                        PlayRequested?.Invoke(al.Tracks, i);
+                        return;
+                    }
+    }
+
+    private void UpdatePlayingRowIndex()
+    {
+        PlayingRowIndex = -1;
+        if (_playingId is null) return;
+        for (var i = 0; i < Rows.Count; i++)
+            if (Rows[i].T.Id == _playingId) { PlayingRowIndex = i; break; }
     }
     public IReadOnlyList<string> Folders { get; private set; } = Array.Empty<string>();
     public IReadOnlyList<string> Artists { get; private set; } = Array.Empty<string>();
@@ -231,7 +329,9 @@ public sealed class LibraryViewModel : ViewModelBase
             {
                 // «Оценки»: фильтр ДО лимита не выразить текущим Search — берём всё и фильтруем,
                 // иначе LIMIT 500 съедал оценённые треки с конца алфавита.
-                var results = _library.Search(query, artist, genre, ratedOnly ? int.MaxValue : 500);
+                // Дерево группирует и виртуализирует — грузим все совпадения; плоский список — 500.
+                var limit = ratedOnly || _showTree ? int.MaxValue : 500;
+                var results = _library.Search(query, artist, genre, limit);
                 return ratedOnly ? results.Where(t => t.Rating > 0).ToList() : (IReadOnlyList<LibraryTrack>)results;
             });
         }

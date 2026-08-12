@@ -61,6 +61,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     /// <summary>Повторный запуск без аргументов: вьюха поднимает и фокусирует окно.</summary>
     public event Action? ActivateRequested;
 
+    /// <summary>Сменился играющий трек — вьюха подматывает видимый список к нему.</summary>
+    public event Action? ScrollToPlaying;
+
+    /// <summary>Индекс играющего трека в очереди (для автопрокрутки плейлиста).</summary>
+    public int PlayingQueueIndex => _engine.CurrentIndex;
+
     /// <summary>Плейлист заменяется целиком (одно уведомление вместо шторма CollectionChanged на 20к треков).</summary>
     public IReadOnlyList<Track> Tracks { get; private set; } = Array.Empty<Track>();
 
@@ -548,6 +554,17 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     public bool VizCompactVisible => _settings.VisualizerEnabled && _settings.VisualizerInCompact;
 
+    /// <summary>Режим визуализатора (0..3). Меняется кликом по визуализатору, сохраняется.</summary>
+    public int VisualizerMode => _settings.VisualizerMode;
+
+    /// <summary>Следующий режим визуализатора по кругу; возвращает новое значение (для вьюхи).</summary>
+    public int CycleVisualizerMode()
+    {
+        _settings.VisualizerMode = (_settings.VisualizerMode + 1) % 4;
+        Raise(nameof(VisualizerMode));
+        return _settings.VisualizerMode;
+    }
+
     public bool MagnetOn
     {
         get => _settings.MagneticSnap;
@@ -971,6 +988,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 case "seek" when double.TryParse(arg, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var f) && !_engine.CurrentIsRadio:
                     _engine.PositionSeconds = Math.Clamp(f, 0, 1) * _engine.DurationSeconds;
+                    UpdateDiscord(); // перемотка с пульта — переякорим таймер Discord
                     break;
                 default: ok = false; break;
             }
@@ -981,6 +999,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     // ---- M6: интеграции ----
 
     private readonly ZBS.Core.Integrations.DiscordPresence _discord = new();
+    private Task _discordChain = Task.CompletedTask; // очередь апдейтов Discord — строгий порядок FIFO
+    private readonly object _discordChainLock = new();
+
+    // Все обращения к Discord — через одну FIFO-очередь на пуле потоков (TaskScheduler.Default!
+    // без него ContinueWith в enable-пути захватил бы UI-планировщик и блокирующий пайп-IO завис бы на UI).
+    private void EnqueueDiscord(Action action)
+    {
+        lock (_discordChainLock)
+            _discordChain = _discordChain.ContinueWith(_ => action(), TaskScheduler.Default);
+    }
 
     public bool RecordMp3On
     {
@@ -1004,17 +1032,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Raise();
             if (value)
             {
-                if (_discord.Connect(EffectiveDiscordAppId))
+                // Коннект (до 10 пайпов × 300 мс + чтение READY) — в фоне: иначе морозил бы UI.
+                DiscordStatus = "Подключаюсь к Discord…";
+                var appId = EffectiveDiscordAppId;
+                Task.Run(() => _discord.Connect(appId)).ContinueWith(t =>
                 {
-                    DiscordStatus = "Подключено к Discord";
-                    UpdateDiscord();
-                }
-                else
-                    DiscordStatus = "Discord не найден (нужен запущенный десктоп-клиент)";
+                    var ok = t.Status == TaskStatus.RanToCompletion && t.Result;
+                    DiscordStatus = ok ? "Подключено к Discord"
+                        : "Discord не найден (нужен запущенный десктоп-клиент)";
+                    if (ok) UpdateDiscord();
+                }, TaskScheduler.FromCurrentSynchronizationContext());
             }
             else
             {
-                _discord.ClearActivity();
+                // Через ту же очередь: иначе ClearActivity мог обогнать уже поставленный в очередь
+                // SetListening, и презенс «воскрес» бы после выключения тумблера.
+                EnqueueDiscord(() => _discord.ClearActivity());
                 DiscordStatus = "";
             }
         }
@@ -1022,14 +1055,25 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void UpdateDiscord()
     {
-        if (!_settings.DiscordPresence || !_discord.IsConnected) return;
-        if (_engine.CurrentIsRadio)
-            _discord.SetListening(_engine.RadioStationName ?? "Радио",
-                Radio.NowPlayingTitle, 0, 0);
-        else if (_engine.CurrentTrack is not null && _engine.State != PlaybackState.Stopped)
-            _discord.SetListening(OverviewTitle, OverviewArtist, _engine.PositionSeconds, _engine.DurationSeconds);
-        else
-            _discord.ClearActivity();
+        if (!_settings.DiscordPresence) return;
+        // Снимаем состояние на UI-потоке, шлём в Discord — в фоне (пайп-запись блокирующая).
+        var radio = _engine.CurrentIsRadio;
+        var stationName = _engine.RadioStationName ?? "Радио";
+        var radioTitle = Radio.NowPlayingTitle;
+        var hasTrack = _engine.CurrentTrack is not null && _engine.State != PlaybackState.Stopped;
+        var paused = _engine.State == PlaybackState.Paused;
+        var title = OverviewTitle;
+        var artist = OverviewArtist;
+        var pos = _engine.PositionSeconds;
+        var dur = paused ? 0 : _engine.DurationSeconds; // на паузе без таймера — иначе Discord крутит прогресс дальше
+        // Сериализуем апдейты в цепочку: два быстрых Next не должны примениться в обратном порядке
+        // (иначе Discord показал бы старый трек). SetListening сам переподключается по backoff.
+        EnqueueDiscord(() =>
+        {
+            if (radio) _discord.SetListening(stationName, radioTitle, 0, 0);
+            else if (hasTrack) _discord.SetListening(title, artist, pos, dur);
+            else _discord.ClearActivity();
+        });
     }
 
     // ---- M6: Last.fm скробблинг ----
@@ -1112,16 +1156,24 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (!_settings.LastfmEnabled || !_lastfm.Ready || track is null || _engine.CurrentIsRadio) return;
         var (artist, title) = SplitArtistTitle(track.DisplayName);
         if (artist.Length == 0) return; // Last.fm без артиста не принимает — не мусорим
-        _ = _lastfm.NowPlayingAsync(artist, title, CancellationToken.None);
+        Observe(_lastfm.NowPlayingAsync(artist, title, CancellationToken.None));
     }
 
     private void LastfmScrobble(Track track)
     {
         if (!_settings.LastfmEnabled || !_lastfm.Ready || _engine.CurrentIsRadio) return;
+        if (_engine.DurationSeconds is > 0 and <= 30) return; // Last.fm не принимает треки ≤30 с
         var (artist, title) = SplitArtistTitle(track.DisplayName);
         if (artist.Length == 0) return;
-        _ = _lastfm.ScrobbleAsync(artist, title, _trackStartedAt, CancellationToken.None);
+        Observe(_lastfm.ScrobbleAsync(artist, title, _trackStartedAt, CancellationToken.None));
     }
+
+    // Fire-and-forget с наблюдением: ошибку (истёк ключ, сеть) видно в статусе, а не «скробблю…» врёт молча.
+    private void Observe(Task task) => task.ContinueWith(t =>
+    {
+        if (t.Exception?.GetBaseException() is { } ex)
+            Dispatcher.UIThread.Post(() => LastfmStatus = ex.Message);
+    }, TaskContinuationOptions.OnlyOnFaulted);
 
     // ---- M5.2: DLNA-кастинг (телевизор/колонка в локальной сети) ----
 
@@ -1583,8 +1635,16 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Raise(nameof(OverviewTitle)); Raise(nameof(OverviewArtist));
             UpdateDiscord(); // сменился трек в эфире
         };
-        if (settings.DiscordPresence && _discord.Connect(EffectiveDiscordAppId))
-            DiscordStatus = "Подключено к Discord";
+        if (settings.DiscordPresence)
+        {
+            // Коннект в фоне: синхронно в конструкторе он морозил бы старт до ~3 с (10 пайпов × 300 мс).
+            var appId = EffectiveDiscordAppId;
+            Task.Run(() =>
+            {
+                if (_discord.Connect(appId))
+                    Dispatcher.UIThread.Post(() => DiscordStatus = "Подключено к Discord");
+            });
+        }
         InitOutputDevices();
         // Last.fm: ключи из настроек + скроббл на «прослушано» (движок сам считает 50%).
         _lastfm.ApiKey = settings.LastfmApiKey;
@@ -1865,7 +1925,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             // это НЕ перемотка пользователя, движок не трогаем.
             if (_changingTrack) return;
             if (Math.Abs(_engine.PositionSeconds - value) > 0.3) // мелкая подгонка ползунком тоже перемотка
+            {
                 _engine.PositionSeconds = value;
+                UpdateDiscord(); // перемотка сдвинула позицию — переякорим таймер Discord
+            }
         }
     }
 
@@ -1950,6 +2013,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         SyncPlayState();
         _ = UpdateCoverAsync(track);
         Library?.SetPlayingId(track?.ResumeKey); // зелёные полоски в списке
+        ScrollToPlaying?.Invoke();               // список подматывается к играющему (шаффл/по порядку)
 
         // M4: ЛЮБОЙ старт видео-трека (в т.ч. повторный клик по нему же) разворачивает Обзор;
         // аудио — просто убирает поверхность.
@@ -2027,6 +2091,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         _mediaServer.Dispose();
         _dlna.Dispose();
         _discord.Dispose();
+        _lastfm.Dispose();
         _remote.Dispose();
         _store.Save(_settings);
         _engine.Dispose();
