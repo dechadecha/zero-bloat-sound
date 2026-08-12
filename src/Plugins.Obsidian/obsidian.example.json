@@ -1,0 +1,10 @@
+{
+  "_подсказка": "Скопируйте рядом с ZBS.Plugins.Obsidian.dll как obsidian.json и заполните путь.",
+  "note": "",
+  "vault": "",
+  "_note_поле": "note = полный путь к markdown-файлу (приоритет). Пример: C:\\Users\\me\\Obsidian\\Vault\\Музыка.md",
+  "_vault_поле": "vault = папка хранилища Obsidian; тогда пишем в ежедневную заметку yyyy-MM-dd.md",
+  "format": "- {time} 🎵 {artist} — {title}",
+  "_format_поле": "плейсхолдеры: {date} {time} {artist} {title}",
+  "dedupe": true
+}

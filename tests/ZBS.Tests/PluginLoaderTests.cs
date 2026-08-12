@@ -55,6 +55,13 @@ public class PluginLoaderTests
     }
 
     [Fact]
+    public void Obsidian_example_plugin_is_discoverable()
+    {
+        var loaded = PluginLoader.FromAssemblies(new[] { typeof(ZBS.Plugins.Obsidian.ObsidianPlugin).Assembly });
+        Assert.Contains(loaded, p => p.Plugin is IGeneralPlugin && p.Plugin.Id == "ru.denisgolub.zbs.obsidian");
+    }
+
+    [Fact]
     public void FromDirectory_missing_folder_is_empty_not_error()
     {
         var loaded = PluginLoader.FromDirectory(Path.Combine(Path.GetTempPath(), "zbs-no-such-dir-xyz"));

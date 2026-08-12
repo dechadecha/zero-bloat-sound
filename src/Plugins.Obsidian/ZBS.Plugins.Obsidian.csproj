@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ZBS.Plugins.Obsidian</AssemblyName>
+    <RootNamespace>ZBS.Plugins.Obsidian</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Api берётся из хоста в рантайме — свою копию dll в плагин НЕ кладём (Private=false). -->
+    <ProjectReference Include="..\Plugins.Api\ZBS.Plugins.Api.csproj" Private="false" ExcludeAssets="runtime" />
+    <InternalsVisibleTo Include="ZBS.Tests" />
+  </ItemGroup>
+</Project>

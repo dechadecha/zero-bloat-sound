@@ -1,5 +1,3 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <ItemGroup>
-    <ProjectReference Include="..\Core\ZBS.Core.csproj" />
-  </ItemGroup>
+  <!-- Лист без зависимостей: сторонний плагин ссылается только на этот маленький Api. -->
 </Project>
