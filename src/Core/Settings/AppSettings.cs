@@ -52,6 +52,9 @@ public sealed class AppSettings
     /// <summary>Магнитное прилипание окна к краям экрана (вкл. AIMP-стайл верх).</summary>
     public bool MagneticSnap { get; set; } = true;
 
+    /// <summary>AIMP-стайл: прилипшее к верхней кромке окно прячется вверх (полоска), наведение возвращает.</summary>
+    public bool EdgeAutoHide { get; set; }
+
     /// <summary>Имя файла активного скина в папке skins ("" — скин выключен, обычный UI).</summary>
     public string SkinFile { get; set; } = "";
 

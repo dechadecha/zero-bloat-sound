@@ -891,6 +891,14 @@
                       </StackPanel>
                     </DockPanel>
                     <DockPanel Margin="0,6">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding EdgeAutoHideOn}"/>
+                      <StackPanel>
+                        <TextBlock Text="Прятать к верхней кромке (AIMP)" Foreground="{DynamicResource ZbsText}" FontSize="13.5"/>
+                        <TextBlock Text="Прилипшее к верху окно уезжает вверх; наведение на кромку возвращает. Нужен магнит."
+                                   Foreground="{DynamicResource ZbsTextMuted}" FontSize="11.5" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <DockPanel Margin="0,6">
                       <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding WaveformOn}"/>
                       <TextBlock Text="{Binding WaveformLblText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
                     </DockPanel>

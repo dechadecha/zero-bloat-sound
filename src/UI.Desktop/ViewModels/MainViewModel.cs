@@ -573,6 +573,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         set { _settings.MagneticSnap = value; Raise(); }
     }
 
+    /// <summary>AIMP-стайл автоскрытие к верхней кромке (окно уезжает вверх, наведение возвращает).</summary>
+    public bool EdgeAutoHideOn
+    {
+        get => _settings.EdgeAutoHide;
+        set { _settings.EdgeAutoHide = value; Raise(); }
+    }
+
     // ---- M3.3/M3.4: скины (.wsz/.zbs) ----
 
     /// <summary>Папка скинов: выбранная пользователем или стандартная.</summary>

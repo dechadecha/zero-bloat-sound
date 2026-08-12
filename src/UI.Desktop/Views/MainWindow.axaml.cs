@@ -106,6 +106,11 @@ public partial class MainWindow : Window
         };
         // Магнитное прилипание окна к краям экрана (тумблер в настройках «Внешность»).
         PositionChanged += OnPositionChangedSnap;
+        // AIMP-стайл автоскрытие к верхней кромке: наведение возвращает, уход/клик мимо — прячет.
+        PointerEntered += (_, _) => { if (Vm?.EdgeAutoHideOn == true) ExpandFromTop(); };
+        PointerExited += (_, _) => { if (AutoHideActive) CollapseToTop(); };
+        Activated += (_, _) => { if (Vm?.EdgeAutoHideOn == true) ExpandFromTop(); };
+        Deactivated += (_, _) => { if (AutoHideActive) CollapseToTop(); };
         // M4: HWND может создаться и до, и после DataContext — покрываем оба порядка.
         VideoSurface.SurfaceCreated += h => Vm?.VideoSurfaceSetter?.Invoke(h);
         // Правый клик выделяет строку под курсором: иначе контекст-меню оценивало СТАРОЕ выделение.
@@ -142,9 +147,16 @@ public partial class MainWindow : Window
     }
 
     private bool _snapping;
+    private bool _snappedTop;   // окно прилипло к верхней кромке (для AIMP-автоскрытия)
+    private bool _topHidden;    // окно уехало вверх (видна только полоска)
+    private bool _autoHiding;   // идёт программный сдвиг — не считать его перетаскиванием
+    private const int TopPeekDip = 3;
+
+    private bool AutoHideActive => Vm?.EdgeAutoHideOn == true && _snappedTop && WindowState == WindowState.Normal;
 
     private void OnPositionChangedSnap(object? sender, PixelPointEventArgs e)
     {
+        if (_autoHiding) return; // наш собственный сдвиг при авто-скрытии
         if (_snapping || Vm?.MagnetOn != true || WindowState != WindowState.Normal) return;
         var screen = Screens.ScreenFromVisual(this);
         if (screen is null) return;
@@ -163,10 +175,39 @@ public partial class MainWindow : Window
         if (Math.Abs(y - wa.Y) <= threshold) ny = wa.Y; // AIMP-стайл: прилип к верхней кромке
         else if (Math.Abs(wa.Bottom - (y + h)) <= threshold) ny = wa.Bottom - h;
 
+        _snappedTop = ny == wa.Y;
+        if (!_snappedTop) _topHidden = false; // утащили от верха — окно точно видимо
+
         if (nx == x && ny == y) return;
         _snapping = true;
         try { Position = new PixelPoint(nx, ny); }
         finally { _snapping = false; }
+    }
+
+    // AIMP-стайл: прилипшее к верху окно уезжает вверх, оставляя полоску; наведение возвращает.
+    private void CollapseToTop()
+    {
+        if (_topHidden || WindowState != WindowState.Normal) return;
+        var screen = Screens.ScreenFromVisual(this);
+        if (screen is null) return;
+        var scale = screen.Scaling;
+        var h = (int)Math.Round((FrameSize?.Height ?? Height) * scale);
+        var peek = (int)Math.Round(TopPeekDip * scale);
+        _topHidden = true;
+        _autoHiding = true;
+        try { Position = new PixelPoint(Position.X, screen.WorkingArea.Y - h + peek); }
+        finally { _autoHiding = false; }
+    }
+
+    private void ExpandFromTop()
+    {
+        if (!_topHidden) return;
+        var screen = Screens.ScreenFromVisual(this);
+        _topHidden = false;
+        if (screen is null) return;
+        _autoHiding = true;
+        try { Position = new PixelPoint(Position.X, screen.WorkingArea.Y); }
+        finally { _autoHiding = false; }
     }
 
     // Компакт по фактическому размеру клиентской области (без Rx-подписок).
