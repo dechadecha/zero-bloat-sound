@@ -104,13 +104,14 @@ public partial class MainWindow : Window
                 _lastNormalHeight = Height;
             }
         };
-        // Магнитное прилипание окна к краям экрана (тумблер в настройках «Внешность»).
-        PositionChanged += OnPositionChangedSnap;
+        // Магнит: дебаунс-снап — примагничиваемся, когда окно на миг остановилось (пауза/отпустил),
+        // а не дёргаемся на каждом событии перетаскивания (иначе дрались бы с ОС и не липло).
+        PositionChanged += OnPositionChanged;
         // AIMP-стайл автоскрытие к верхней кромке: наведение возвращает, уход/клик мимо — прячет.
         PointerEntered += (_, _) => { if (Vm?.EdgeAutoHideOn == true) ExpandFromTop(); };
         PointerExited += (_, _) => { if (AutoHideActive) CollapseToTop(); };
         Activated += (_, _) => { if (Vm?.EdgeAutoHideOn == true) ExpandFromTop(); };
-        Deactivated += (_, _) => { if (AutoHideActive) CollapseToTop(); };
+        Deactivated += (_, _) => { Vm?.SaveSettings(); if (AutoHideActive) CollapseToTop(); };
         // M4: HWND может создаться и до, и после DataContext — покрываем оба порядка.
         VideoSurface.SurfaceCreated += h => Vm?.VideoSurfaceSetter?.Invoke(h);
         // Правый клик выделяет строку под курсором: иначе контекст-меню оценивало СТАРОЕ выделение.
@@ -146,44 +147,52 @@ public partial class MainWindow : Window
         if (index >= 0) list.SelectedIndex = index;
     }
 
-    private bool _snapping;
     private bool _snappedTop;   // окно прилипло к верхней кромке (для AIMP-автоскрытия)
     private bool _topHidden;    // окно уехало вверх (видна только полоска)
     private bool _autoHiding;   // идёт программный сдвиг — не считать его перетаскиванием
     private const int TopPeekDip = 3;
+    private Avalonia.Threading.DispatcherTimer? _snapTimer;
+    private PixelPoint? _pendingSnap;
 
     private bool AutoHideActive => Vm?.EdgeAutoHideOn == true && _snappedTop && WindowState == WindowState.Normal;
 
-    private void OnPositionChangedSnap(object? sender, PixelPointEventArgs e)
+    private void OnPositionChanged(object? sender, PixelPointEventArgs e)
     {
-        if (_autoHiding) return; // наш собственный сдвиг при авто-скрытии
-        if (_snapping || Vm?.MagnetOn != true || WindowState != WindowState.Normal) return;
+        if (_autoHiding || Vm?.MagnetOn != true || WindowState != WindowState.Normal) { _pendingSnap = null; return; }
         var screen = Screens.ScreenFromVisual(this);
         if (screen is null) return;
         var wa = screen.WorkingArea;
-        var scale = screen.Scaling; // масштаб ЭКРАНА: RenderScaling окна отстаёт при переезде между мониторами
+        var scale = screen.Scaling;
         var w = (int)Math.Round((FrameSize?.Width ?? Width) * scale);
         var h = (int)Math.Round((FrameSize?.Height ?? Height) * scale);
-        var threshold = (int)(14 * scale);
+        var thr = (int)(14 * scale);
+        int x = e.Point.X, y = e.Point.Y, nx = x, ny = y;
 
-        var x = e.Point.X;
-        var y = e.Point.Y;
-        var nx = x;
-        var ny = y;
-        if (Math.Abs(x - wa.X) <= threshold) nx = wa.X;
-        else if (Math.Abs(wa.Right - (x + w)) <= threshold) nx = wa.Right - w;
-        // Верх: прилипаем, если край у кромки ИЛИ его загнали выше (y <= кромки + порог) —
-        // иначе «упёр за верх» не срабатывал. Клампим к кромке.
-        if (y <= wa.Y + threshold) ny = wa.Y; // AIMP-стайл: прилип к верхней кромке
-        else if (Math.Abs(wa.Bottom - (y + h)) <= threshold) ny = wa.Bottom - h;
+        if (Math.Abs(x - wa.X) <= thr) nx = wa.X;
+        else if (Math.Abs(wa.Right - (x + w)) <= thr) nx = wa.Right - w;
+        if (y <= wa.Y + thr) ny = wa.Y;                       // у кромки или загнали выше — липнем к верху
+        else if (Math.Abs(wa.Bottom - (y + h)) <= thr) ny = wa.Bottom - h;
 
         _snappedTop = ny == wa.Y;
-        if (!_snappedTop) _topHidden = false; // утащили от верха — окно точно видимо
+        if (!_snappedTop) _topHidden = false;
 
-        if (nx == x && ny == y) return;
-        _snapping = true;
-        try { Position = new PixelPoint(nx, ny); }
-        finally { _snapping = false; }
+        if (nx == x && ny == y) { _pendingSnap = null; return; } // у края нет — не примагничиваем
+        _pendingSnap = new PixelPoint(nx, ny);
+        _snapTimer ??= CreateSnapTimer();
+        _snapTimer.Stop();
+        _snapTimer.Start(); // сработает, когда окно на миг остановится (пауза/отпустил)
+    }
+
+    private Avalonia.Threading.DispatcherTimer CreateSnapTimer()
+    {
+        var t = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(70) };
+        t.Tick += (_, _) =>
+        {
+            t.Stop();
+            if (_pendingSnap is { } p && WindowState == WindowState.Normal) Position = p;
+            _pendingSnap = null;
+        };
+        return t;
     }
 
     // AIMP-стайл: прилипшее к верху окно уезжает вверх, оставляя полоску; наведение возвращает.

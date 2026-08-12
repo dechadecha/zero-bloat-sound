@@ -495,6 +495,12 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public IReadOnlyList<EqBand> EqBands { get; private set; } = Array.Empty<EqBand>();
     public ParamRelayCommand EqPresetCommand { get; private set; } = null!;
 
+    /// <summary>Сохранить настройки сейчас (зовётся при потере фокуса — чтобы не терять при краше/жёстком закрытии).</summary>
+    public void SaveSettings()
+    {
+        try { _store.Save(_settings); } catch (Exception) { }
+    }
+
     public bool EqOn
     {
         get => _settings.EqEnabled;
@@ -503,6 +509,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             _settings.EqEnabled = value;
             ApplyEq();
             Raise();
+            _store.Save(_settings); // сохраняем сразу — «выкл» не должен теряться при краше/жёстком закрытии
         }
     }
 
