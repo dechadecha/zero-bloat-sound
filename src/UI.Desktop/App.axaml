@@ -1,0 +1,368 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ZBS.UI.Desktop.App"
+             RequestedThemeVariant="Dark">
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <!-- Zero-Bloat Sound: зелёный play-акцент правит слайдеры/выделение/вкладки разом -->
+      <Color x:Key="SystemAccentColor">#00E676</Color>
+      <Color x:Key="SystemAccentColorDark1">#00C853</Color>
+      <Color x:Key="SystemAccentColorDark2">#00A846</Color>
+      <Color x:Key="SystemAccentColorDark3">#008C3A</Color>
+      <Color x:Key="SystemAccentColorLight1">#33EB8B</Color>
+      <Color x:Key="SystemAccentColorLight2">#66F0A6</Color>
+      <Color x:Key="SystemAccentColorLight3">#99F5C4</Color>
+
+      <!-- Палитра — живые токены: ThemeService подменяет их на лету (.zbs-темы). -->
+      <SolidColorBrush x:Key="ZbsAccent" Color="#00E676"/>
+      <SolidColorBrush x:Key="ZbsAccentDim" Color="#00B85E"/>
+      <SolidColorBrush x:Key="ZbsAccentInk" Color="#0E0E14"/>
+      <SolidColorBrush x:Key="ZbsBg" Color="#0E0E14"/>
+      <SolidColorBrush x:Key="ZbsSurface1" Color="#16161F"/>
+      <SolidColorBrush x:Key="ZbsSurface2" Color="#20202C"/>
+      <SolidColorBrush x:Key="ZbsSurface3" Color="#2A2A38"/>
+      <SolidColorBrush x:Key="ZbsText" Color="#F0F0F3"/>
+      <SolidColorBrush x:Key="ZbsTextMuted" Color="#8A8A96"/>
+      <SolidColorBrush x:Key="ZbsTextFaint" Color="#5C5C68"/>
+      <SolidColorBrush x:Key="ZbsLine" Color="#14FFFFFF"/>
+      <SolidColorBrush x:Key="ZbsGhost" Color="#3A3A48"/>
+      <SolidColorBrush x:Key="ZbsSelection" Color="#1A00E676"/>
+
+      <!-- Векторные иконки (Lucide, ISC). Заполняемые — сплошные, линейные — рисуются Stroke. -->
+      <StreamGeometry x:Key="IcoPrev">M6 5h2v14H6z M20 5v14l-10-7z</StreamGeometry>
+      <StreamGeometry x:Key="IcoNext">M16 5h2v14h-2z M4 5v14l10-7z</StreamGeometry>
+      <StreamGeometry x:Key="IcoPlay">M7 5v14l12-7z</StreamGeometry>
+      <StreamGeometry x:Key="IcoPause">M7 5h3v14H7z M14 5h3v14h-3z</StreamGeometry>
+      <StreamGeometry x:Key="IcoStop">M7 7h10v10H7z</StreamGeometry>
+      <StreamGeometry x:Key="IcoShuffle">M16 3h5v5 M4 20 21 3 M21 16v5h-5 M15 15l6 6 M4 4l5 5</StreamGeometry>
+      <StreamGeometry x:Key="IcoRepeat">M17 2l4 4-4 4 M3 11v-1a4 4 0 0 1 4-4h14 M7 22l-4-4 4-4 M21 13v1a4 4 0 0 1-4 4H3</StreamGeometry>
+      <StreamGeometry x:Key="IcoRepeatOne">M17 2l4 4-4 4 M3 11v-1a4 4 0 0 1 4-4h14 M7 22l-4-4 4-4 M21 13v1a4 4 0 0 1-4 4H3 M11 9h1v6</StreamGeometry>
+      <StreamGeometry x:Key="IcoExpand">M8 3H5a2 2 0 0 0-2 2v3 M21 8V5a2 2 0 0 0-2-2h-3 M16 21h3a2 2 0 0 0 2-2v-3 M3 16v3a2 2 0 0 0 2 2h3</StreamGeometry>
+      <StreamGeometry x:Key="IcoCollapse">M4 14h6v6 M20 10h-6V4 M14 10l7-7 M3 21l7-7</StreamGeometry>
+      <StreamGeometry x:Key="IcoDisc">M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 9.6a2.4 2.4 0 1 0 0 4.8a2.4 2.4 0 1 0 0-4.8</StreamGeometry>
+      <StreamGeometry x:Key="IcoFolder">M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z</StreamGeometry>
+      <StreamGeometry x:Key="IcoStar">M12 3l2.6 5.6 6 .7-4.4 4.1 1.2 6L12 16.9 6.6 19.4l1.2-6L3.4 9.3l6-.7z</StreamGeometry>
+      <StreamGeometry x:Key="IcoList">M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01</StreamGeometry>
+      <StreamGeometry x:Key="IcoSliders">M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6</StreamGeometry>
+      <StreamGeometry x:Key="IcoBack">M19 12H5 M12 19l-7-7 7-7</StreamGeometry>
+      <StreamGeometry x:Key="IcoText">M4 6h16 M4 12h11 M4 18h14</StreamGeometry>
+      <StreamGeometry x:Key="IcoVol">M11 5 6 9H2v6h4l5 4z M15.5 8.5a5 5 0 0 1 0 7 M19 5a9 9 0 0 1 0 14</StreamGeometry>
+      <StreamGeometry x:Key="IcoSearch">M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14 M21 21l-4.3-4.3</StreamGeometry>
+      <StreamGeometry x:Key="IcoX">M6 6l12 12 M18 6L6 18</StreamGeometry>
+      <StreamGeometry x:Key="IcoChevD">M6 9l6 6 6-6</StreamGeometry>
+      <StreamGeometry x:Key="IcoLayers">M12 2 2 7l10 5 10-5-10-5z M2 12l10 5 10-5 M2 17l10 5 10-5</StreamGeometry>
+      <!-- Lucide radio: волны вокруг точки -->
+      <StreamGeometry x:Key="IcoRadio">M4.9 19.1C1 15.2 1 8.8 4.9 4.9 M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5 M12 12h.01 M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5 M19.1 4.9C23 8.8 23 15.2 19.1 19.1</StreamGeometry>
+      <!-- Lucide mic: подкасты -->
+      <StreamGeometry x:Key="IcoMic">M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v3</StreamGeometry>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme/>
+
+    <!-- Сплошные (заполняемые) иконки -->
+    <Style Selector="Path.ico">
+      <Setter Property="Stretch" Value="Uniform"/>
+      <Setter Property="Width" Value="20"/>
+      <Setter Property="Height" Value="20"/>
+      <Setter Property="Fill" Value="{DynamicResource ZbsText}"/>
+    </Style>
+    <!-- Линейные (обводка) иконки -->
+    <Style Selector="Path.icoline">
+      <Setter Property="Stretch" Value="Uniform"/>
+      <Setter Property="Width" Value="20"/>
+      <Setter Property="Height" Value="20"/>
+      <Setter Property="Fill" Value="Transparent"/>
+      <Setter Property="Stroke" Value="{DynamicResource ZbsTextMuted}"/>
+      <Setter Property="StrokeThickness" Value="2"/>
+      <Setter Property="StrokeLineCap" Value="Round"/>
+      <Setter Property="StrokeJoin" Value="Round"/>
+    </Style>
+
+    <!-- Круглые кнопки транспорта -->
+    <Style Selector="Button.transport">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="24"/>
+      <Setter Property="Width" Value="48"/>
+      <Setter Property="Height" Value="48"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.transport:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface3}"/>
+    </Style>
+
+    <!-- Главная кнопка play/pause — зелёная, крупнее, иконка тёмная -->
+    <Style Selector="Button.play">
+      <Setter Property="Width" Value="60"/>
+      <Setter Property="Height" Value="60"/>
+      <Setter Property="CornerRadius" Value="30"/>
+    </Style>
+    <Style Selector="Button.play /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+    <Style Selector="Button.play:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ZbsAccentDim}"/>
+    </Style>
+    <Style Selector="Button.play Path.ico">
+      <Setter Property="Width" Value="24"/>
+      <Setter Property="Height" Value="24"/>
+      <Setter Property="Fill" Value="{DynamicResource ZbsAccentInk}"/>
+    </Style>
+
+    <!-- Режимные кнопки (шаффл/повтор/A-B): подсветка зелёным когда активны -->
+    <Style Selector="Button.mode">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Width" Value="42"/>
+      <Setter Property="Height" Value="42"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.mode:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+    </Style>
+    <Style Selector="Button.mode.active Path.icoline">
+      <Setter Property="Stroke" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+    <Style Selector="Button.mode.active">
+      <Setter Property="Foreground" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+
+    <!-- Иконка-кнопка (развернуть/свернуть в шапке) -->
+    <Style Selector="Button.icon">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Width" Value="40"/>
+      <Setter Property="Height" Value="40"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.icon:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+    </Style>
+
+    <!-- Обычные кнопки -->
+    <Style Selector="Button.flat">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+      <Setter Property="Foreground" Value="{DynamicResource ZbsText}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="Padding" Value="12,7"/>
+    </Style>
+    <Style Selector="Button.flat:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface3}"/>
+    </Style>
+
+    <!-- A-B: текстовая мини-кнопка -->
+    <Style Selector="Button.ab">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource ZbsTextMuted}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Height" Value="42"/>
+      <Setter Property="Padding" Value="10,0"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.ab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+    </Style>
+    <Style Selector="Button.ab.active">
+      <Setter Property="Foreground" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+
+    <!-- Вкладки -->
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="18"/>
+      <Setter Property="Foreground" Value="{DynamicResource ZbsTextMuted}"/>
+      <Setter Property="Padding" Value="4,4"/>
+      <Setter Property="Margin" Value="0,0,20,0"/>
+    </Style>
+    <Style Selector="TabItem:selected">
+      <Setter Property="Foreground" Value="{DynamicResource ZbsText}"/>
+    </Style>
+
+    <!-- Списки -->
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="8,5"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Foreground" Value="{DynamicResource ZbsText}"/>
+    </Style>
+    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ZbsSelection}"/>
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="CornerRadius" Value="8"/>
+    </Style>
+
+    <!-- Сайдбар: пункт навигации (рельс = только иконка, подробный = иконка+подпись) -->
+    <Style Selector="Button.nav">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Height" Value="40"/>
+      <Setter Property="Padding" Value="10,0"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Foreground" Value="{DynamicResource ZbsTextMuted}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+    </Style>
+    <Style Selector="Button.nav.active /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+    </Style>
+    <Style Selector="Button.nav.active">
+      <Setter Property="Foreground" Value="{DynamicResource ZbsText}"/>
+    </Style>
+    <Style Selector="Button.nav.active Path.icoline">
+      <Setter Property="Stroke" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+    <Style Selector="Button.nav Path.icoline">
+      <Setter Property="Width" Value="18"/>
+      <Setter Property="Height" Value="18"/>
+    </Style>
+
+    <!-- Заголовок секции сайдбара (крупнее — слово Дениса) -->
+    <Style Selector="TextBlock.navcap">
+      <Setter Property="FontSize" Value="11.5"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="LetterSpacing" Value="2.2"/>
+      <Setter Property="Foreground" Value="{DynamicResource ZbsTextMuted}"/>
+      <Setter Property="Margin" Value="12,16,0,6"/>
+    </Style>
+
+    <!-- Караоке-титры (.lrc): текущая строка акцентом -->
+    <Style Selector="TextBlock.karnow">
+      <Setter Property="Foreground" Value="{DynamicResource ZbsAccent}"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+    </Style>
+
+    <!-- Кнопка «Жанр: все ▾» над списком -->
+    <Style Selector="Button.genre">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ZbsLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.genre:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface3}"/>
+    </Style>
+
+    <!-- Плитка настроек (бенто): тянется на всю ячейку, контент прижат к левому-верхнему -->
+    <Style Selector="Button.tile">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface1}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ZbsLine}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="14"/>
+      <Setter Property="Padding" Value="18"/>
+      <Setter Property="MinHeight" Value="112"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="VerticalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="VerticalContentAlignment" Value="Top"/>
+    </Style>
+    <Style Selector="Button.tile Path.icoline">
+      <Setter Property="HorizontalAlignment" Value="Left"/>
+    </Style>
+    <Style Selector="Button.tile:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+
+    <!-- A-B: явная пилюля (канон §5) -->
+    <Style Selector="Button.abpill">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource ZbsTextMuted}"/>
+      <Setter Property="BorderBrush" Value="#2EFFFFFF"/>
+      <Setter Property="BorderThickness" Value="1.5"/>
+      <Setter Property="CornerRadius" Value="15"/>
+      <Setter Property="Height" Value="30"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.abpill:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource ZbsSurface2}"/>
+    </Style>
+    <Style Selector="Button.abpill.active">
+      <Setter Property="Foreground" Value="{DynamicResource ZbsAccent}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+
+    <!-- Полоски «сейчас играет» в списке (мини-эквалайзер, чистая анимация) -->
+    <Style Selector="Rectangle.eqbar">
+      <Setter Property="Fill" Value="{DynamicResource ZbsAccent}"/>
+      <Setter Property="Width" Value="3"/>
+      <Setter Property="RadiusX" Value="1.5"/>
+      <Setter Property="RadiusY" Value="1.5"/>
+      <Setter Property="VerticalAlignment" Value="Bottom"/>
+      <Setter Property="RenderTransformOrigin" Value="50%,100%"/>
+      <Style.Animations>
+        <Animation Duration="0:0:0.9" IterationCount="INFINITE" Easing="SineEaseInOut">
+          <KeyFrame Cue="0%"><Setter Property="ScaleTransform.ScaleY" Value="0.35"/></KeyFrame>
+          <KeyFrame Cue="50%"><Setter Property="ScaleTransform.ScaleY" Value="1"/></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="ScaleTransform.ScaleY" Value="0.35"/></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+    <Style Selector="Rectangle.eqbar.d2">
+      <Style.Animations>
+        <Animation Duration="0:0:0.9" IterationCount="INFINITE" Easing="SineEaseInOut" Delay="0:0:0.3">
+          <KeyFrame Cue="0%"><Setter Property="ScaleTransform.ScaleY" Value="1"/></KeyFrame>
+          <KeyFrame Cue="50%"><Setter Property="ScaleTransform.ScaleY" Value="0.4"/></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="ScaleTransform.ScaleY" Value="1"/></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+    <Style Selector="Rectangle.eqbar.d3">
+      <Style.Animations>
+        <Animation Duration="0:0:0.9" IterationCount="INFINITE" Easing="SineEaseInOut" Delay="0:0:0.55">
+          <KeyFrame Cue="0%"><Setter Property="ScaleTransform.ScaleY" Value="0.55"/></KeyFrame>
+          <KeyFrame Cue="50%"><Setter Property="ScaleTransform.ScaleY" Value="1"/></KeyFrame>
+          <KeyFrame Cue="100%"><Setter Property="ScaleTransform.ScaleY" Value="0.55"/></KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <!-- Полупрозрачная стрелка «назад» (Обзор/Настройки) -->
+    <Style Selector="Button.back">
+      <Setter Property="Background" Value="#B320202C"/>
+      <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="19"/>
+      <Setter Property="Width" Value="38"/>
+      <Setter Property="Height" Value="38"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Opacity" Value="0.75"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.back:pointerover">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="Button.back:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
+  </Application.Styles>
+</Application>

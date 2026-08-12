@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="ManagedBass" Version="3.1.1" />
+    <PackageReference Include="ManagedBass.Fx" Version="3.1.1" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+  </ItemGroup>
+  <PropertyGroup>
+    <BassNativeDir Condition="$([MSBuild]::IsOSPlatform('Windows'))">..\..\lib\bass\win-x64</BassNativeDir>
+    <BassNativeDir Condition="$([MSBuild]::IsOSPlatform('Linux'))">..\..\lib\bass\linux-x64</BassNativeDir>
+    <BassNativeDir Condition="$([MSBuild]::IsOSPlatform('OSX'))">..\..\lib\bass\osx</BassNativeDir>
+    <!-- libmpv (M4, видео): пока только Windows; без dll видео просто недоступно -->
+    <MpvNativeDir Condition="$([MSBuild]::IsOSPlatform('Windows'))">..\..\lib\mpv\win-x64</MpvNativeDir>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(BassNativeDir)' != ''">
+    <None Include="$(BassNativeDir)\*.*"
+          Link="%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MpvNativeDir)' != '' AND Exists('$(MpvNativeDir)')">
+    <None Include="$(MpvNativeDir)\*.dll"
+          Link="%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

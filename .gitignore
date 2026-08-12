@@ -1,0 +1,29 @@
+# build
+bin/
+obj/
+*.user
+.vs/
+
+# runtime artifacts
+*.db
+*.db-wal
+*.db-shm
+resume.json
+settings.json
+covers/
+
+# libmpv: 114 МБ, выше лимита GitHub (100 МБ) — качается отдельно,
+# см. lib/mpv/README.md. BASS-нативы маленькие и едут в репо.
+lib/mpv/win-x64/*.dll
+
+# local scratch
+*.log
+audioplayer.zip
+
+# внутренняя кухня — не для публичного репо
+CLAUDE.md
+AUDIOPLAYER.md
+docs/
+
+# ����-����� ��� ��������� ������
+skins/

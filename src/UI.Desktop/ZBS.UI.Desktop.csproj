@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>ZeroBloatSound</AssemblyName>
+    <RootNamespace>ZBS.UI.Desktop</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.2" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.2" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.2" />
+    <!-- QR-код ссылки веб-пульта (Apache-2.0) -->
+    <PackageReference Include="ZXing.Net" Version="0.16.10" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\ZBS.Core.csproj" />
+    <ProjectReference Include="..\Library\ZBS.Library.csproj" />
+    <ProjectReference Include="..\Skins\ZBS.Skins.csproj" />
+    <ProjectReference Include="..\Plugins.Api\ZBS.Plugins.Api.csproj" />
+    <ProjectReference Include="..\Outputs\ZBS.Outputs.csproj" />
+    <ProjectReference Include="..\Remote\ZBS.Remote.csproj" />
+    <ProjectReference Include="..\Visualization\ZBS.Visualization.csproj" />
+  </ItemGroup>
+</Project>

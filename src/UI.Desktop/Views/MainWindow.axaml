@@ -1,0 +1,1049 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ZBS.UI.Desktop.ViewModels"
+        xmlns:ctl="using:ZBS.UI.Desktop.Controls"
+        x:Class="ZBS.UI.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="{Binding AppTitle}"
+        Icon="avares://ZeroBloatSound/Assets/zbs.ico"
+        MinWidth="360" MinHeight="200"
+        Background="{DynamicResource ZbsBg}"
+        DragDrop.AllowDrop="True">
+
+  <Panel>
+
+    <!-- ═══════════════════════ ПОЛНЫЙ РЕЖИМ ═══════════════════════ -->
+    <Grid IsVisible="{Binding IsFull}" RowDefinitions="*,Auto">
+
+      <!-- Тело: сайдбар + контент -->
+      <Grid Grid.Row="0" x:Name="BodyGrid" Margin="12,12,12,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="230" MinWidth="64" MaxWidth="320"/>
+          <ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ───────── Сайдбар ───────── -->
+        <Border Grid.Column="0" x:Name="SidebarPane"
+                Background="{DynamicResource ZbsSurface1}" CornerRadius="12" Padding="10"
+                IsVisible="{Binding SidebarVisible}">
+          <DockPanel>
+            <Button DockPanel.Dock="Bottom" Classes="nav" Classes.active="{Binding IsSettings}"
+                    Command="{Binding OpenSettingsCommand}" ToolTip.Tip="{Binding NavSettingsText}">
+              <StackPanel Orientation="Horizontal" Spacing="11">
+                <Path Classes="icoline" Data="{StaticResource IcoSliders}"/>
+                <TextBlock Text="{Binding NavSettingsText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <ScrollViewer>
+              <StackPanel Spacing="2">
+                <TextBox Text="{Binding Library.Query}" Watermark="{Binding SearchShortText}"
+                         IsVisible="{Binding SidebarLabels}" Margin="0,0,0,6"/>
+                <TextBlock Classes="navcap" Text="{Binding SecPhonotekaText}" IsVisible="{Binding SidebarLabels}"/>
+                <Button Classes="nav" Classes.active="{Binding IsSectionAllTracks}"
+                        Command="{Binding NavCommand}" CommandParameter="AllTracks" ToolTip.Tip="{Binding NavAllTracksText}">
+                  <StackPanel Orientation="Horizontal" Spacing="11">
+                    <Path Classes="icoline" Data="{StaticResource IcoDisc}"/>
+                    <TextBlock Text="{Binding NavAllTracksText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Classes="nav" Classes.active="{Binding IsSectionFolders}"
+                        Command="{Binding NavCommand}" CommandParameter="Folders" ToolTip.Tip="{Binding NavFoldersText}">
+                  <StackPanel Orientation="Horizontal" Spacing="11">
+                    <Path Classes="icoline" Data="{StaticResource IcoFolder}"/>
+                    <TextBlock Text="{Binding NavFoldersText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Classes="nav" Classes.active="{Binding IsSectionRatings}"
+                        Command="{Binding NavCommand}" CommandParameter="Ratings" ToolTip.Tip="{Binding NavRatingsText}">
+                  <StackPanel Orientation="Horizontal" Spacing="11">
+                    <Path Classes="icoline" Data="{StaticResource IcoStar}"/>
+                    <TextBlock Text="{Binding NavRatingsText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Classes="nav" Classes.active="{Binding IsSectionLibrary}"
+                        Command="{Binding NavCommand}" CommandParameter="LibraryManage" ToolTip.Tip="{Binding NavLibraryText}">
+                  <StackPanel Orientation="Horizontal" Spacing="11">
+                    <Path Classes="icoline" Data="{StaticResource IcoLayers}"/>
+                    <TextBlock Text="{Binding NavLibraryText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <TextBlock Classes="navcap" Text="{Binding SecPlaylistsText}" IsVisible="{Binding SidebarLabels}"/>
+                <Button Classes="nav" Classes.active="{Binding IsSectionQueue}"
+                        Command="{Binding NavCommand}" CommandParameter="Queue" ToolTip.Tip="{Binding NavQueueText}">
+                  <StackPanel Orientation="Horizontal" Spacing="11">
+                    <Path Classes="icoline" Data="{StaticResource IcoList}"/>
+                    <TextBlock Text="{Binding NavQueueText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <TextBlock Classes="navcap" Text="ЭФИР" IsVisible="{Binding SidebarLabels}"/>
+                <Button Classes="nav" Classes.active="{Binding IsSectionRadio}" IsVisible="{Binding RadioSectionOn}"
+                        Command="{Binding NavCommand}" CommandParameter="Radio" ToolTip.Tip="{Binding NavRadioText}">
+                  <StackPanel Orientation="Horizontal" Spacing="11">
+                    <Path Classes="icoline" Data="{StaticResource IcoRadio}"/>
+                    <TextBlock Text="{Binding NavRadioText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Classes="nav" Classes.active="{Binding IsSectionPodcasts}" IsVisible="{Binding PodcastsSectionOn}"
+                        Command="{Binding NavCommand}" CommandParameter="Podcasts" ToolTip.Tip="{Binding NavPodcastsText}">
+                  <StackPanel Orientation="Horizontal" Spacing="11">
+                    <Path Classes="icoline" Data="{StaticResource IcoMic}"/>
+                    <TextBlock Text="{Binding NavPodcastsText}" IsVisible="{Binding SidebarLabels}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+
+        <GridSplitter Grid.Column="1" Width="8" Background="Transparent"
+                      IsVisible="{Binding SidebarVisible}" ResizeDirection="Columns"/>
+
+        <!-- ───────── Контент ───────── -->
+        <Panel Grid.Column="2">
+
+          <!-- ══ Все треки / Оценки: двухстрочный список + деталь ══ -->
+          <Grid IsVisible="{Binding ShowLibraryList}" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,*">
+
+            <!-- Шапка: «Жанр: все ▾» слева, счётчик справа -->
+            <DockPanel Grid.Row="0" Grid.Column="0" Margin="2,0,0,10">
+              <TextBlock DockPanel.Dock="Right" Text="{Binding Library.CountText}" Foreground="{DynamicResource ZbsTextMuted}"
+                         FontSize="12" VerticalAlignment="Center"/>
+              <Button Classes="genre" x:Name="GenreBtn" HorizontalAlignment="Left">
+                <Button.Flyout>
+                  <Flyout Placement="BottomEdgeAlignedLeft">
+                    <ListBox x:Name="GenreList" Width="230" MaxHeight="320" Background="Transparent"
+                             ItemsSource="{Binding Library.Genres}"
+                             SelectedIndex="{Binding Library.SelectedGenreIndex}"
+                             SelectionChanged="GenreList_SelectionChanged"/>
+                  </Flyout>
+                </Button.Flyout>
+                <StackPanel Orientation="Horizontal" Spacing="7">
+                  <TextBlock Text="{Binding GenrePrefixText}" FontWeight="Bold" FontSize="12.5" Foreground="{DynamicResource ZbsText}"/>
+                  <TextBlock Text="{Binding Library.GenreLabel}" FontSize="12.5" Foreground="{DynamicResource ZbsTextMuted}"/>
+                  <Path Classes="icoline" Data="{StaticResource IcoChevD}" Width="13" Height="13"/>
+                </StackPanel>
+              </Button>
+            </DockPanel>
+
+            <!-- Заголовок колонок -->
+            <DockPanel Grid.Row="1" Grid.Column="0" Margin="14,0,14,0">
+              <TextBlock DockPanel.Dock="Right" Text="{Binding ColTimeText}" FontSize="10" LetterSpacing="1"
+                         Foreground="{DynamicResource ZbsTextFaint}" FontWeight="Bold"/>
+              <TextBlock Text="{Binding ColHeaderText}" FontSize="10" LetterSpacing="1"
+                         Foreground="{DynamicResource ZbsTextFaint}" FontWeight="Bold"/>
+            </DockPanel>
+
+            <!-- Список -->
+            <ListBox x:Name="LibraryList" Grid.Row="2" Grid.Column="0" Margin="2,6,0,0" Background="Transparent"
+                     ItemsSource="{Binding Library.Rows}" SelectedIndex="{Binding Library.SelectedIndex}"
+                     DoubleTapped="Library_DoubleTapped">
+              <ListBox.ContextMenu>
+                <ContextMenu DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel">
+                  <MenuItem Header="★" Command="{Binding RateCommand}" CommandParameter="1"/>
+                  <MenuItem Header="★★" Command="{Binding RateCommand}" CommandParameter="2"/>
+                  <MenuItem Header="★★★" Command="{Binding RateCommand}" CommandParameter="3"/>
+                  <MenuItem Header="★★★★" Command="{Binding RateCommand}" CommandParameter="4"/>
+                  <MenuItem Header="★★★★★" Command="{Binding RateCommand}" CommandParameter="5"/>
+                  <MenuItem Header="{Binding RateText}" Command="{Binding RateCommand}" CommandParameter="0"/>
+                </ContextMenu>
+              </ListBox.ContextMenu>
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:LibRow">
+                  <DockPanel Margin="0,2">
+                    <Panel DockPanel.Dock="Left" Width="30" Margin="0,0,8,0">
+                      <TextBlock Text="{Binding N}" FontSize="11" Foreground="{DynamicResource ZbsTextFaint}"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 IsVisible="{Binding NotPlaying}"/>
+                      <StackPanel Orientation="Horizontal" Spacing="2" Height="15"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  IsVisible="{Binding Playing}">
+                        <Rectangle Classes="eqbar" Height="9"/>
+                        <Rectangle Classes="eqbar d2" Height="15"/>
+                        <Rectangle Classes="eqbar d3" Height="11"/>
+                      </StackPanel>
+                    </Panel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding T.DurationText}" Foreground="{DynamicResource ZbsTextMuted}"
+                               FontSize="12" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding T.RatingStars}" Foreground="{DynamicResource ZbsAccent}"
+                               FontSize="11.5" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding T.DisplayTitle}" FontWeight="SemiBold" FontSize="14.5"
+                                 Foreground="{DynamicResource ZbsText}" TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Text="{Binding T.DisplayArtist}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"
+                                 TextTrimming="CharacterEllipsis" IsVisible="{Binding T.DisplayArtist.Length}"/>
+                    </StackPanel>
+                  </DockPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding Library.EmptyLibraryHint}"
+                       IsVisible="{Binding !Library.HasFolders}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ZbsTextFaint}"
+                       TextWrapping="Wrap" MaxWidth="320" TextAlignment="Center"/>
+
+            <!-- Деталь трека -->
+            <Border Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Width="272" Margin="10,0,0,0"
+                    Background="{DynamicResource ZbsSurface1}" CornerRadius="12" Padding="16" IsVisible="{Binding DetailOpen}">
+              <DockPanel>
+                <Panel DockPanel.Dock="Top">
+                  <StackPanel Spacing="2" Margin="16,0">
+                    <TextBlock Text="{Binding DetailTitle}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ZbsText}"
+                               TextAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding DetailArtist}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"
+                               TextAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                  <Button Classes="icon" Width="28" Height="28" HorizontalAlignment="Right" VerticalAlignment="Top"
+                          Command="{Binding CloseDetailCommand}">
+                    <Path Classes="icoline" Data="{StaticResource IcoX}" Width="13" Height="13"/>
+                  </Button>
+                </Panel>
+                <Button DockPanel.Dock="Bottom" Classes="abpill" Height="36" HorizontalAlignment="Center"
+                        Margin="0,12,0,0" Classes.active="{Binding DetailTextMode}"
+                        Command="{Binding ToggleDetailTextCommand}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Path Classes="icoline" Data="{StaticResource IcoText}" Width="14" Height="14"/>
+                    <TextBlock Text="{Binding TextBtnText}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <ScrollViewer Margin="0,14,0,0">
+                  <StackPanel Spacing="14">
+                    <StackPanel Spacing="14" IsVisible="{Binding DetailMetaVisible}">
+                      <Border Width="152" Height="152" CornerRadius="10" ClipToBounds="True" Background="{DynamicResource ZbsSurface2}"
+                              HorizontalAlignment="Center">
+                        <Panel>
+                          <TextBlock Text="♫" FontSize="44" Foreground="{DynamicResource ZbsGhost}"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          <Image Source="{Binding DetailCover}" Stretch="UniformToFill"/>
+                        </Panel>
+                      </Border>
+                      <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding DetailStarsOn}" FontSize="15" Foreground="{DynamicResource ZbsAccent}"/>
+                        <TextBlock Text="{Binding DetailStarsOff}" FontSize="15" Foreground="{DynamicResource ZbsTextFaint}"/>
+                      </StackPanel>
+                      <StackPanel>
+                        <Border BorderBrush="{DynamicResource ZbsLine}" BorderThickness="0,0,0,1" Padding="0,5">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding DetailAlbum}" Foreground="{DynamicResource ZbsText}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding DetailAlbumText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12"/>
+                          </DockPanel>
+                        </Border>
+                        <Border BorderBrush="{DynamicResource ZbsLine}" BorderThickness="0,0,0,1" Padding="0,5">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding DetailGenre}" Foreground="{DynamicResource ZbsText}" FontSize="12"/>
+                            <TextBlock Text="{Binding DetailGenreText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12"/>
+                          </DockPanel>
+                        </Border>
+                        <Border BorderBrush="{DynamicResource ZbsLine}" BorderThickness="0,0,0,1" Padding="0,5">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding DetailFormat}" Foreground="{DynamicResource ZbsText}" FontSize="12"/>
+                            <TextBlock Text="{Binding DetailFormatText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12"/>
+                          </DockPanel>
+                        </Border>
+                        <Border BorderBrush="{DynamicResource ZbsLine}" BorderThickness="0,0,0,1" Padding="0,5">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding DetailYear}" Foreground="{DynamicResource ZbsText}" FontSize="12"/>
+                            <TextBlock Text="{Binding DetailYearText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12"/>
+                          </DockPanel>
+                        </Border>
+                        <Border Padding="0,5">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding DetailDuration}" Foreground="{DynamicResource ZbsText}" FontSize="12"/>
+                            <TextBlock Text="{Binding DetailDurationText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12"/>
+                          </DockPanel>
+                        </Border>
+                      </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="{Binding DetailLyrics}" IsVisible="{Binding DetailTextMode}"
+                               TextWrapping="Wrap" FontSize="13" LineHeight="22" Foreground="{DynamicResource ZbsText}"/>
+                  </StackPanel>
+                </ScrollViewer>
+              </DockPanel>
+            </Border>
+          </Grid>
+
+          <!-- ══ Папки ══ -->
+          <Panel IsVisible="{Binding ShowFolders}">
+            <DockPanel DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel">
+              <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="2,0,0,12">
+                <Button Classes="flat" Content="{Binding AddFolderText}" Command="{Binding AddFolderCommand}"/>
+                <Button Classes="flat" Content="{Binding RemoveFolderText}" Command="{Binding RemoveFolderCommand}"/>
+                <Button Classes="flat" Content="{Binding RescanText}" Command="{Binding RescanCommand}"/>
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12"/>
+              </StackPanel>
+              <ListBox ItemsSource="{Binding Folders}" SelectedIndex="{Binding SelectedFolderIndex}"
+                       Background="Transparent" Margin="2,0,0,0"/>
+            </DockPanel>
+          </Panel>
+
+          <!-- ══ Библиотека: экран управления (папки + артисты + результаты + кнопки) ══ -->
+          <Panel IsVisible="{Binding ShowLibraryManage}">
+            <DockPanel DataContext="{Binding Library}" x:DataType="vm:LibraryViewModel">
+              <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="2,0,0,10">
+                <Button Classes="flat" Content="{Binding AddFolderText}" Command="{Binding AddFolderCommand}"/>
+                <Button Classes="flat" Content="{Binding RemoveFolderText}" Command="{Binding RemoveFolderCommand}"/>
+                <Button Classes="flat" Content="{Binding RescanText}" Command="{Binding RescanCommand}"/>
+                <Button Classes="flat" Content="{Binding AppendAllText}" Command="{Binding AppendAllCommand}"/>
+                <Button Classes="flat" Content="{Binding DuplicatesText}" Command="{Binding DuplicatesCommand}"/>
+                <Button Classes="flat" Content="{Binding BrokenText}" Command="{Binding BrokenCommand}"/>
+              </StackPanel>
+              <TextBlock DockPanel.Dock="Top" Text="{Binding Status}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12"
+                         Margin="4,0,0,8"/>
+              <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Folders}"
+                       SelectedIndex="{Binding SelectedFolderIndex}" Background="Transparent"
+                       MaxHeight="76" Margin="2,0,0,10" FontSize="12" IsVisible="{Binding HasFolders}"/>
+              <DockPanel>
+                <ListBox DockPanel.Dock="Left" Width="170" Margin="2,0,10,0" FontSize="12" Background="Transparent"
+                         ItemsSource="{Binding Artists}" SelectedIndex="{Binding SelectedArtistIndex}"/>
+                <ListBox ItemsSource="{Binding Results}" SelectedIndex="{Binding SelectedIndex}"
+                         Background="Transparent" DoubleTapped="Library_DoubleTapped">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <DockPanel Margin="2,1">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding DurationText}" Foreground="{DynamicResource ZbsTextMuted}"
+                                   FontSize="11.5" VerticalAlignment="Center" Margin="10,0,2,0"/>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding RatingStars}" Foreground="{DynamicResource ZbsAccent}"
+                                   FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Text="{Binding Display}" FontSize="13" TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"/>
+                      </DockPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </DockPanel>
+          </Panel>
+
+          <!-- ══ Плейлист (очередь) ══ -->
+          <Panel IsVisible="{Binding ShowQueue}">
+            <DockPanel>
+              <DockPanel DockPanel.Dock="Top" Margin="2,0,0,10">
+                <Button DockPanel.Dock="Right" Classes="flat" Content="{Binding SavePlaylistText}"
+                        Command="{Binding SavePlaylistCommand}" Margin="8,0,0,0"/>
+                <Button DockPanel.Dock="Right" Classes="flat" Content="{Binding OpenFolderText}"
+                        Command="{Binding OpenFolderCommand}" Margin="8,0,0,0"/>
+                <TextBox Text="{Binding JumpQuery}" Watermark="{Binding JumpWatermark}" KeyDown="Jump_KeyDown"/>
+              </DockPanel>
+              <Panel>
+                <ListBox x:Name="QueueList" ItemsSource="{Binding Tracks}" SelectedIndex="{Binding SelectedIndex}" Margin="2,0,0,0"
+                         Background="Transparent" DoubleTapped="Playlist_DoubleTapped">
+                  <ListBox.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{Binding PlayNextText}" Command="{Binding EnqueueSelectedCommand}"/>
+                      <Separator/>
+                      <MenuItem Header="★" Command="{Binding RateSelectedCommand}" CommandParameter="1"/>
+                      <MenuItem Header="★★" Command="{Binding RateSelectedCommand}" CommandParameter="2"/>
+                      <MenuItem Header="★★★" Command="{Binding RateSelectedCommand}" CommandParameter="3"/>
+                      <MenuItem Header="★★★★" Command="{Binding RateSelectedCommand}" CommandParameter="4"/>
+                      <MenuItem Header="★★★★★" Command="{Binding RateSelectedCommand}" CommandParameter="5"/>
+                      <MenuItem Header="{Binding ClearRatingText}" Command="{Binding RateSelectedCommand}" CommandParameter="0"/>
+                    </ContextMenu>
+                  </ListBox.ContextMenu>
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding DisplayName}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Text="{Binding EmptyHintText}" IsVisible="{Binding !HasTracks}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource ZbsTextFaint}"/>
+              </Panel>
+            </DockPanel>
+          </Panel>
+
+          <!-- ══ Радио (M5): интернет-каталог / частотная шкала ══ -->
+          <Panel IsVisible="{Binding ShowRadio}">
+            <DockPanel>
+              <!-- Шапка: тумблер режимов + управление -->
+              <DockPanel DockPanel.Dock="Top" Margin="2,0,0,12">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                  <Button Classes="flat" Content="{Binding Radio.RecText}" Command="{Binding Radio.RecCommand}"/>
+                  <Button Classes="flat" Content="■ Стоп" Command="{Binding Radio.StopCommand}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Button Classes="genre" Classes.active="{Binding Radio.NetMode}" Command="{Binding Radio.NetModeCommand}">
+                    <TextBlock Text="Интернет" FontSize="12.5" FontWeight="Bold"/>
+                  </Button>
+                  <Button Classes="genre" Classes.active="{Binding Radio.FmMode}" Command="{Binding Radio.FmModeCommand}">
+                    <TextBlock Text="Частотное" FontSize="12.5" FontWeight="Bold"/>
+                  </Button>
+                </StackPanel>
+              </DockPanel>
+
+              <!-- Низ: статус + сейчас в эфире -->
+              <StackPanel DockPanel.Dock="Bottom" Margin="2,10,0,0" Spacing="3">
+                <TextBlock Text="{Binding Radio.NowPlayingTitle}" FontSize="13" FontWeight="Bold"
+                           Foreground="{DynamicResource ZbsAccent}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding Radio.Status}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}"
+                           TextTrimming="CharacterEllipsis"/>
+              </StackPanel>
+
+              <Panel>
+                <!-- Интернет-режим: поиск, под ним фильтры, список станций -->
+                <DockPanel IsVisible="{Binding Radio.NetMode}">
+                  <DockPanel DockPanel.Dock="Top" Margin="2,0,0,6">
+                    <Button DockPanel.Dock="Right" Classes="flat" Content="★ Избранное"
+                            Command="{Binding Radio.FavoritesCommand}" Margin="8,0,0,0"/>
+                    <Button DockPanel.Dock="Right" Classes="flat" Content="Найти"
+                            Command="{Binding Radio.SearchCommand}" Margin="8,0,0,0"/>
+                    <TextBox Text="{Binding Radio.Query}" Watermark="Название станции…" KeyDown="RadioSearch_KeyDown"/>
+                  </DockPanel>
+                  <!-- Фильтры отдельной строкой ПОД поиском — ничего не перекрывают -->
+                  <DockPanel DockPanel.Dock="Top" Margin="2,0,0,10">
+                    <Button DockPanel.Dock="Right" Classes="flat" Content="Обновить"
+                            Command="{Binding Radio.CheckStationsCommand}" Margin="8,0,0,0"
+                            ToolTip.Tip="Прозвонить потоки и убрать протухшие"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <ComboBox ItemsSource="{Binding Radio.Countries}" SelectedIndex="{Binding Radio.CountryIndex}"
+                                MinWidth="150" FontSize="12.5"/>
+                      <ComboBox ItemsSource="{Binding Radio.Bitrates}" SelectedIndex="{Binding Radio.BitrateIndex}"
+                                MinWidth="140" FontSize="12.5"/>
+                    </StackPanel>
+                  </DockPanel>
+                  <ListBox x:Name="RadioList" Background="Transparent" Margin="2,0,0,0"
+                           ItemsSource="{Binding Radio.Stations}" SelectedIndex="{Binding Radio.SelectedIndex}"
+                           DoubleTapped="Radio_DoubleTapped">
+                    <ListBox.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="Слушать" Command="{Binding Radio.PlaySelectedCommand}"/>
+                        <MenuItem Header="В избранное / убрать" Command="{Binding Radio.ToggleFavoriteCommand}"/>
+                      </ContextMenu>
+                    </ListBox.ContextMenu>
+                    <ListBox.ItemTemplate>
+                      <DataTemplate x:DataType="vm:StationRow">
+                        <DockPanel Margin="0,3">
+                          <TextBlock DockPanel.Dock="Left" Text="{Binding Star}" Width="22" FontSize="13"
+                                     Foreground="{DynamicResource ZbsAccent}" VerticalAlignment="Center"/>
+                          <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding S.Name}" FontSize="13.5" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource ZbsText}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding S.Subtitle}" FontSize="11" Foreground="{DynamicResource ZbsTextMuted}"
+                                       TextTrimming="CharacterEllipsis"/>
+                          </StackPanel>
+                        </DockPanel>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </DockPanel>
+
+                <!-- Частотный режим: имя крупно, частота ниже, тюнер + рисованная шкала -->
+                <StackPanel IsVisible="{Binding Radio.FmMode}" VerticalAlignment="Center" Spacing="14" MaxWidth="680">
+                  <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Radio.FmStationName}" FontSize="34" FontWeight="Bold"
+                               HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
+                               Foreground="{DynamicResource ZbsText}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="7">
+                      <TextBlock Text="{Binding Radio.FmFreqText}" FontSize="20" FontWeight="Bold"
+                                 Foreground="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="FM" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource ZbsTextMuted}"
+                                 VerticalAlignment="Center" Margin="0,3,0,0"/>
+                    </StackPanel>
+                  </StackPanel>
+                  <StackPanel Spacing="0">
+                    <Slider Minimum="{Binding Radio.FmMin}" Maximum="{Binding Radio.FmMax}"
+                            Value="{Binding Radio.FmMhz}" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                            Margin="0,0,0,-4"/>
+                    <ctl:FmScaleControl x:Name="FmScale" Height="52" Frequency="{Binding Radio.FmMhz}"
+                                        MinFreq="{Binding Radio.FmMin}" MaxFreq="{Binding Radio.FmMax}"/>
+                  </StackPanel>
+                  <TextBlock Text="крути ручку — станции ловятся сами; точки на шкале — где вещают" FontSize="11"
+                             Foreground="{DynamicResource ZbsTextFaint}" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </Panel>
+            </DockPanel>
+          </Panel>
+
+          <!-- ══ Подкасты (M5): подписки RSS + эпизоды ══ -->
+          <Panel IsVisible="{Binding ShowPodcasts}">
+            <DockPanel>
+              <DockPanel DockPanel.Dock="Top" Margin="2,0,0,10">
+                <Button DockPanel.Dock="Right" Classes="flat" Content="Обновить"
+                        Command="{Binding Podcasts.RefreshCommand}" Margin="8,0,0,0"/>
+                <Button DockPanel.Dock="Right" Classes="flat" Content="Подписаться"
+                        Command="{Binding Podcasts.AddFeedCommand}" Margin="8,0,0,0"/>
+                <TextBox Text="{Binding Podcasts.FeedUrl}" Watermark="Ссылка на подкаст — RSS или просто страница…" KeyDown="PodcastUrl_KeyDown"/>
+              </DockPanel>
+              <TextBlock DockPanel.Dock="Bottom" Text="{Binding Podcasts.Status}" FontSize="11.5"
+                         Foreground="{DynamicResource ZbsTextMuted}" Margin="2,8,0,0" TextTrimming="CharacterEllipsis"/>
+              <Grid ColumnDefinitions="260,12,*">
+                <DockPanel Grid.Column="0">
+                  <Button DockPanel.Dock="Bottom" Classes="flat" Content="Удалить подписку"
+                          Command="{Binding Podcasts.RemoveFeedCommand}" Margin="0,8,0,0"
+                          IsVisible="{Binding Podcasts.HasFeeds}"/>
+                  <ListBox Background="Transparent" ItemsSource="{Binding Podcasts.Feeds}"
+                           SelectedIndex="{Binding Podcasts.FeedIndex}">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <StackPanel Margin="0,3" Spacing="2">
+                          <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                     Foreground="{DynamicResource ZbsText}" TextWrapping="Wrap"/>
+                          <TextBlock Text="{Binding Author}" FontSize="10.5" Foreground="{DynamicResource ZbsTextMuted}"
+                                     TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </DockPanel>
+                <ListBox Grid.Column="2" Background="Transparent"
+                         ItemsSource="{Binding Podcasts.Episodes}" SelectedIndex="{Binding Podcasts.EpisodeIndex}"
+                         DoubleTapped="Podcast_DoubleTapped">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:EpisodeRow">
+                      <StackPanel Margin="0,3" Spacing="2">
+                        <TextBlock Text="{Binding Ep.Title}" FontSize="13.5" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource ZbsText}" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                          <TextBlock Text="{Binding Ep.Subtitle}" FontSize="11" Foreground="{DynamicResource ZbsTextMuted}"/>
+                          <TextBlock Text="{Binding State}" FontSize="11" Foreground="{DynamicResource ZbsAccent}"/>
+                        </StackPanel>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Grid>
+            </DockPanel>
+          </Panel>
+
+          <!-- ══ Обзор (сейчас играет) ══ -->
+          <Panel IsVisible="{Binding IsNowPlaying}" Background="Transparent"
+                 DoubleTapped="Overview_DoubleTapped">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
+                <Border Width="300" Height="300" CornerRadius="16" ClipToBounds="True" Background="{DynamicResource ZbsSurface2}"
+                        BoxShadow="0 18 60 0 #B0000000" HorizontalAlignment="Center"
+                        IsVisible="{Binding CoverVisibleInOverview}">
+                  <Panel>
+                    <TextBlock Text="♫" FontSize="84" Foreground="{DynamicResource ZbsGhost}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+                  </Panel>
+                </Border>
+                <StackPanel Spacing="6" HorizontalAlignment="Center" MaxWidth="520">
+                  <TextBlock Text="{Binding OverviewTitle}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource ZbsText}"
+                             HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding OverviewArtist}" FontSize="15" Foreground="{DynamicResource ZbsTextMuted}"
+                             HorizontalAlignment="Center" TextAlignment="Center"/>
+                </StackPanel>
+                <ctl:SpectrumControl x:Name="VizOverview" Height="52" Width="300" BarCount="32"
+                                     HorizontalAlignment="Center" IsVisible="{Binding VizOn}" Opacity="0.9"/>
+              </StackPanel>
+              <Border Grid.Column="1" Width="330" Margin="12,44,6,6" IsVisible="{Binding LyricsOpen}">
+                <Panel>
+                  <ScrollViewer IsVisible="{Binding LyricsPlain}">
+                    <TextBlock Text="{Binding LyricsText}" TextWrapping="Wrap" FontSize="15" LineHeight="28"
+                               Foreground="{DynamicResource ZbsText}" Margin="8,4"/>
+                  </ScrollViewer>
+                  <!-- Караоке (.lrc): текущая строка акцентом, автоскролл в код-бихайнде -->
+                  <ScrollViewer x:Name="KaraokeScroll" IsVisible="{Binding LyricsSynced}">
+                    <ItemsControl x:Name="KaraokeItems" ItemsSource="{Binding KaraokeLines}" Margin="8,4">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:KaraokeLine">
+                          <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="15" LineHeight="28"
+                                     Foreground="{DynamicResource ZbsTextMuted}"
+                                     Classes.karnow="{Binding Current}"/>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Panel>
+              </Border>
+            </Grid>
+
+            <Border Width="280" HorizontalAlignment="Right" Background="{DynamicResource ZbsSurface1}" CornerRadius="12"
+                    Padding="12" IsVisible="{Binding QueueOpen}" BoxShadow="-16 0 40 0 #80000000">
+              <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                  <Button DockPanel.Dock="Right" Classes="icon" Width="28" Height="28"
+                          Command="{Binding ToggleQueueCommand}">
+                    <Path Classes="icoline" Data="{StaticResource IcoX}" Width="13" Height="13"/>
+                  </Button>
+                  <TextBlock Text="{Binding QueueTitleText}" FontWeight="Bold" FontSize="14"
+                             Foreground="{DynamicResource ZbsText}" VerticalAlignment="Center"/>
+                </DockPanel>
+                <ListBox ItemsSource="{Binding QueueItems}" Background="Transparent" FontSize="12"
+                         DoubleTapped="Queue_DoubleTapped">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </DockPanel>
+            </Border>
+
+            <Button Classes="back" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
+                    Command="{Binding BackCommand}" ToolTip.Tip="{Binding BackText}">
+              <Path Classes="icoline" Data="{StaticResource IcoBack}" Width="17" Height="17"/>
+            </Button>
+            <Button Classes="back" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
+                    Command="{Binding ToggleQueueCommand}" ToolTip.Tip="{Binding QueueTitleText}"
+                    IsVisible="{Binding !QueueOpen}">
+              <Path Classes="icoline" Data="{StaticResource IcoList}" Width="17" Height="17"/>
+            </Button>
+          </Panel>
+
+          <!-- ══ Настройки: плитки ══ -->
+          <Panel IsVisible="{Binding IsSettings}">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Text="{Binding SettingsTitleText}" FontSize="18" FontWeight="Bold"
+                         Foreground="{DynamicResource ZbsText}" Margin="4,0,0,14"/>
+              <UniformGrid Columns="3">
+                  <Button Classes="tile" Margin="0,0,12,12" Command="{Binding OpenTileCommand}" CommandParameter="viz">
+                    <StackPanel Spacing="9">
+                      <Path Classes="icoline" Data="{StaticResource IcoDisc}" Width="22" Height="22" Stroke="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="{Binding TileVisualizerText}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ZbsText}"/>
+                      <TextBlock Text="{Binding TileVisualizerHint}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="tile" Margin="0,0,12,12" Command="{Binding OpenTileCommand}" CommandParameter="eq">
+                    <StackPanel Spacing="9">
+                      <Path Classes="icoline" Data="{StaticResource IcoSliders}" Width="22" Height="22" Stroke="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="{Binding TileEqText}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ZbsText}"/>
+                      <TextBlock Text="{Binding TileEqHint}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="tile" Margin="0,0,0,12" Command="{Binding OpenTileCommand}" CommandParameter="audio">
+                    <StackPanel Spacing="9">
+                      <Path Classes="icoline" Data="{StaticResource IcoVol}" Width="22" Height="22" Stroke="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="{Binding TileAudioText}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ZbsText}"/>
+                      <TextBlock Text="{Binding TileAudioHint}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="tile" Margin="0,0,12,12" Command="{Binding OpenTileCommand}" CommandParameter="keys">
+                    <StackPanel Spacing="9">
+                      <Path Classes="icoline" Data="{StaticResource IcoText}" Width="22" Height="22" Stroke="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="{Binding TileKeysText}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ZbsText}"/>
+                      <TextBlock Text="{Binding TileKeysHint}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="tile" Margin="0,0,12,12" Command="{Binding OpenTileCommand}" CommandParameter="look">
+                    <StackPanel Spacing="9">
+                      <Path Classes="icoline" Data="{StaticResource IcoStar}" Width="22" Height="22" Stroke="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="{Binding TileLookText}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ZbsText}"/>
+                      <TextBlock Text="{Binding TileLookHint}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="tile" Margin="0,0,12,12" Command="{Binding OpenTileCommand}" CommandParameter="net">
+                    <StackPanel Spacing="9">
+                      <Path Classes="icoline" Data="{StaticResource IcoRadio}" Width="22" Height="22" Stroke="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="{Binding TileNetText}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ZbsText}"/>
+                      <TextBlock Text="{Binding TileNetHint}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="tile" Margin="0,0,0,12" Command="{Binding OpenTileCommand}" CommandParameter="upd">
+                    <StackPanel Spacing="9">
+                      <Path Classes="icoline" Data="{StaticResource IcoExpand}" Width="22" Height="22" Stroke="{DynamicResource ZbsAccent}"/>
+                      <TextBlock Text="{Binding TileUpdatesText}" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ZbsText}"/>
+                      <TextBlock Text="{Binding TileUpdatesHint}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Button>
+              </UniformGrid>
+            </DockPanel>
+          </Panel>
+
+          <!-- ══ Страница настройки ══ -->
+          <Panel IsVisible="{Binding IsSettingsDetail}">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                <Button Classes="back" Command="{Binding BackCommand}" ToolTip.Tip="{Binding BackText}">
+                  <Path Classes="icoline" Data="{StaticResource IcoBack}" Width="17" Height="17"/>
+                </Button>
+                <TextBlock Text="{Binding TileTitle}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ZbsText}"
+                           VerticalAlignment="Center"/>
+              </StackPanel>
+              <ScrollViewer>
+                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="4" Margin="4,0,0,0">
+                  <StackPanel IsVisible="{Binding TileIsAudio}" Spacing="4">
+                    <DockPanel Margin="0,6">
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding CrossfadeLabel}" Foreground="{DynamicResource ZbsAccent}"
+                                 FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                      <StackPanel>
+                        <TextBlock Text="{Binding SetCrossfadeText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5"/>
+                        <Slider Minimum="0" Maximum="12" TickFrequency="0.5" IsSnapToTickEnabled="True"
+                                Value="{Binding CrossfadeSeconds}" Width="300" HorizontalAlignment="Left"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <DockPanel Margin="0,6">
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding SmoothPauseLabel}" Foreground="{DynamicResource ZbsAccent}"
+                                 FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                      <StackPanel>
+                        <TextBlock Text="{Binding SetSmoothPauseText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5"/>
+                        <Slider Minimum="0" Maximum="600" TickFrequency="50" IsSnapToTickEnabled="True"
+                                Value="{Binding SmoothPauseMs}" Width="300" HorizontalAlignment="Left"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <DockPanel Margin="0,10">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding ReplayGainOn}"/>
+                      <TextBlock Text="{Binding SetReplayGainText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,10">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding ResumeLongOn}"/>
+                      <TextBlock Text="{Binding SetResumeLongText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                  </StackPanel>
+                  <!-- Сеть и вывод (M5) -->
+                  <StackPanel IsVisible="{Binding TileIsNet}" Spacing="10">
+                    <TextBlock Text="УСТРОЙСТВО ВЫВОДА" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}"/>
+                    <ComboBox ItemsSource="{Binding OutputDevices}" SelectedIndex="{Binding OutputDeviceSelected}"
+                              Width="360" HorizontalAlignment="Left"/>
+                    <TextBlock Text="ВЕБ-ПУЛЬТ" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding WebRemoteOn}"/>
+                      <TextBlock Text="Управление с телефона (домашняя сеть)" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <SelectableTextBlock Text="{Binding RemoteLinkText}" FontSize="12.5"
+                               Foreground="{DynamicResource ZbsAccent}" TextWrapping="Wrap"/>
+                    <Border Background="White" CornerRadius="8" Padding="8" Width="236" HorizontalAlignment="Left"
+                            IsVisible="{Binding RemoteQrVisible}">
+                      <Image Source="{Binding RemoteQr}" Width="220" Height="220"/>
+                    </Border>
+                    <TextBlock Text="ЗАПИСЬ ЭФИРА" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
+                    <DockPanel IsEnabled="{Binding Mp3EncoderPresent}">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding RecordMp3On}"/>
+                      <TextBlock Text="Перекодировать записи в MP3 (192 кбит/с)" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Text="ИНТЕГРАЦИИ" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding DiscordOn}"/>
+                      <TextBlock Text="Discord: показывать «слушает …»" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding DiscordStatus}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"
+                               TextWrapping="Wrap"/>
+                    <DockPanel Margin="0,8,0,0">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding LastfmOn}"/>
+                      <TextBlock Text="Last.fm: скробблить прослушанное" Foreground="{DynamicResource ZbsText}"
+                                 FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <StackPanel Spacing="6" MaxWidth="420" HorizontalAlignment="Left" IsVisible="{Binding LastfmOn}">
+                      <TextBox Text="{Binding LastfmApiKey}" FontSize="12" Watermark="API key (last.fm/api)"/>
+                      <TextBox Text="{Binding LastfmApiSecret}" FontSize="12" Watermark="Shared secret" PasswordChar="•"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBox Text="{Binding LastfmLogin}" FontSize="12" Width="150" Watermark="Логин"/>
+                        <TextBox Text="{Binding LastfmPassword}" FontSize="12" Width="150" Watermark="Пароль (не хранится)"
+                                 PasswordChar="•"/>
+                        <Button Classes="flat" Content="Войти" Command="{Binding LastfmLoginCommand}"/>
+                      </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="{Binding LastfmStatus}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="КАСТИНГ (DLNA)" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <ComboBox ItemsSource="{Binding CastDevices}" SelectedIndex="{Binding CastDeviceIndex}"
+                                MinWidth="220" FontSize="12.5"/>
+                      <Button Classes="flat" Content="Найти устройства" Command="{Binding FindCastCommand}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Button Classes="flat" Content="▶ Играть на устройстве" Command="{Binding CastPlayCommand}"/>
+                      <Button Classes="flat" Content="■ Стоп" Command="{Binding CastStopCommand}"/>
+                    </StackPanel>
+                    <DockPanel MaxWidth="360" HorizontalAlignment="Left" IsVisible="{Binding IsCasting}">
+                      <TextBlock DockPanel.Dock="Left" Text="Громкость ТВ" FontSize="12"
+                                 Foreground="{DynamicResource ZbsTextMuted}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                      <Slider Minimum="0" Maximum="100" Value="{Binding CastVolume}"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding CastStatus}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="СЕКЦИИ САЙДБАРА" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding RadioSectionOn}"/>
+                      <TextBlock Text="Радио" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding PodcastsSectionOn}"/>
+                      <TextBlock Text="Подкасты" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                  </StackPanel>
+                  <!-- Эквалайзер: 10 полос + пресеты -->
+                  <StackPanel IsVisible="{Binding TileIsEq}" Spacing="16">
+                    <DockPanel>
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding EqOn}"/>
+                      <TextBlock Text="{Binding EqOnLblText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding PresetsLblText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                      <Button Classes="flat" Padding="12,6" Content="{Binding PresetFlatText}" Command="{Binding EqPresetCommand}" CommandParameter="flat"/>
+                      <Button Classes="flat" Padding="12,6" Content="{Binding PresetAufText}" Command="{Binding EqPresetCommand}" CommandParameter="auf"/>
+                      <Button Classes="flat" Padding="12,6" Content="{Binding PresetRockText}" Command="{Binding EqPresetCommand}" CommandParameter="rock"/>
+                      <Button Classes="flat" Padding="12,6" Content="{Binding PresetPopText}" Command="{Binding EqPresetCommand}" CommandParameter="pop"/>
+                      <Button Classes="flat" Padding="12,6" Content="{Binding PresetBassText}" Command="{Binding EqPresetCommand}" CommandParameter="bass"/>
+                      <Button Classes="flat" Padding="12,6" Content="{Binding PresetVoiceText}" Command="{Binding EqPresetCommand}" CommandParameter="voice"/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding EqBands}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="14"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:EqBand">
+                          <StackPanel Spacing="6" HorizontalAlignment="Center">
+                            <Slider Orientation="Vertical" Height="180" Minimum="-12" Maximum="12"
+                                    TickFrequency="1" IsSnapToTickEnabled="True"
+                                    Value="{Binding Gain}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding Label}" FontSize="10.5" Foreground="{DynamicResource ZbsTextMuted}"
+                                       HorizontalAlignment="Center"/>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+
+                  <!-- Визуализатор: тумблеры + живое превью -->
+                  <StackPanel IsVisible="{Binding TileIsViz}" Spacing="4">
+                    <DockPanel Margin="0,6">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding VizOn}"/>
+                      <TextBlock Text="{Binding VizOnLblText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <DockPanel Margin="0,6">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding VizInCompactOn}"/>
+                      <TextBlock Text="{Binding VizCompactLblText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <Border Background="{DynamicResource ZbsSurface1}" CornerRadius="12" Padding="16" Margin="0,10,0,0">
+                      <ctl:SpectrumControl x:Name="VizPreview" Height="130" BarCount="36"/>
+                    </Border>
+                  </StackPanel>
+
+                  <!-- Внешность: магнит окна + waveform + скины -->
+                  <StackPanel IsVisible="{Binding TileIsLook}" Spacing="4">
+                    <DockPanel Margin="0,6">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding MagnetOn}"/>
+                      <StackPanel>
+                        <TextBlock Text="{Binding MagnetLblText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5"/>
+                        <TextBlock Text="{Binding MagnetHintText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="11.5"/>
+                      </StackPanel>
+                    </DockPanel>
+                    <DockPanel Margin="0,6">
+                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding WaveformOn}"/>
+                      <TextBlock Text="{Binding WaveformLblText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <TextBlock Text="{Binding SkinsTitleText}" Foreground="{DynamicResource ZbsText}" FontSize="14.5"
+                               FontWeight="Bold" Margin="0,16,0,6"/>
+                    <Border Background="{DynamicResource ZbsSurface1}" CornerRadius="10" Padding="6" MinHeight="90" MaxHeight="180">
+                      <Panel>
+                        <ListBox ItemsSource="{Binding SkinsList}" SelectedIndex="{Binding SelectedSkinIndex}"
+                                 Background="Transparent" FontSize="12.5"
+                                 DoubleTapped="Skin_DoubleTapped"/>
+                        <TextBlock Text="{Binding SkinNoneHintText}" IsVisible="{Binding !HasSkins}"
+                                   Foreground="{DynamicResource ZbsTextFaint}" FontSize="12" HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="300" TextAlignment="Center"/>
+                      </Panel>
+                    </Border>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                      <Button Classes="flat" Content="{Binding SkinApplyText}" Command="{Binding ApplySkinCommand}"/>
+                      <Button Classes="flat" Content="{Binding SkinAddText}" Command="{Binding AddSkinsCommand}"/>
+                      <Button Classes="flat" Content="{Binding SkinDisableText}" Command="{Binding DisableSkinCommand}"
+                              IsEnabled="{Binding SkinActive}"/>
+                      <Button Classes="flat" Content="{Binding SkinConvertText}" Command="{Binding ConvertSkinCommand}"
+                              ToolTip.Tip=".wsz → .zbs"/>
+                      <Button Classes="flat" Content="{Binding SkinRefreshText}" Command="{Binding RefreshSkinsCommand}"/>
+                      <Button Classes="flat" Content="{Binding SkinFolderText}" Command="{Binding ChooseSkinsFolderCommand}"
+                              ToolTip.Tip="{Binding SkinsDir}"/>
+                      <Button Classes="flat" Content="{Binding SkinFolderResetText}" Command="{Binding ResetSkinsFolderCommand}"
+                              IsVisible="{Binding IsCustomSkinsDir}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding SkinsDir}" Foreground="{DynamicResource ZbsTextFaint}" FontSize="11"
+                               TextTrimming="CharacterEllipsis" Margin="2,4,0,0"/>
+
+                    <TextBlock Text="{Binding LookInfoText}" Foreground="{DynamicResource ZbsTextMuted}" FontSize="13"
+                               TextWrapping="Wrap" LineHeight="22" Margin="0,14,0,0"/>
+                  </StackPanel>
+
+                  <TextBlock IsVisible="{Binding TileIsStub}" Text="{Binding TileStubText}"
+                             Foreground="{DynamicResource ZbsTextMuted}" FontSize="14" TextWrapping="Wrap" LineHeight="24" Margin="0,6"/>
+                </StackPanel>
+              </ScrollViewer>
+            </DockPanel>
+          </Panel>
+        </Panel>
+      </Grid>
+
+      <!-- ───────── Транспорт (живёт всегда) ───────── -->
+      <Border Grid.Row="1" Background="{DynamicResource ZbsSurface1}" CornerRadius="12" Padding="16,10" Margin="12">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="11" VerticalAlignment="Center" Width="212">
+            <Button Padding="0" Background="Transparent" BorderThickness="0" CornerRadius="8"
+                    Command="{Binding OpenOverviewCommand}" ToolTip.Tip="{Binding NowPlayingTip}">
+              <Border Width="46" Height="46" CornerRadius="8" ClipToBounds="True" Background="{DynamicResource ZbsSurface2}">
+                <Panel>
+                  <TextBlock Text="♫" FontSize="20" Foreground="{DynamicResource ZbsGhost}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+                </Panel>
+              </Border>
+            </Button>
+            <StackPanel VerticalAlignment="Center" Width="144">
+              <TextBlock Text="{Binding MiniTitle}" FontSize="13" FontWeight="Bold"
+                         Foreground="{DynamicResource ZbsText}" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="{Binding MiniSubtitle}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}"
+                         TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Spacing="5" VerticalAlignment="Center" MaxWidth="560">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+              <Button Classes="mode" Classes.active="{Binding ShuffleActive}" Command="{Binding ShuffleCommand}"
+                      ToolTip.Tip="{Binding ShuffleTip}">
+                <Path Classes="icoline" Data="{StaticResource IcoShuffle}"/>
+              </Button>
+              <Button Classes="mode" Command="{Binding PreviousCommand}">
+                <Path Classes="ico" Data="{StaticResource IcoPrev}"/>
+              </Button>
+              <Button Classes="transport play" Width="46" Height="46" Command="{Binding PlayPauseCommand}">
+                <Panel Width="22" Height="22">
+                  <Path Classes="ico" Data="{StaticResource IcoPlay}" Width="18" Height="18"
+                        IsVisible="{Binding !IsPlaying}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Margin="3,0,0,0"/>
+                  <Path Classes="ico" Data="{StaticResource IcoPause}" Width="17" Height="17"
+                        IsVisible="{Binding IsPlaying}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Panel>
+              </Button>
+              <Button Classes="mode" Command="{Binding NextCommand}">
+                <Path Classes="ico" Data="{StaticResource IcoNext}"/>
+              </Button>
+              <Button Classes="mode" Classes.active="{Binding RepeatActive}" Command="{Binding RepeatCommand}"
+                      ToolTip.Tip="{Binding RepeatTip}">
+                <Panel>
+                  <Path Classes="icoline" Data="{StaticResource IcoRepeat}" IsVisible="{Binding !RepeatOne}"/>
+                  <Path Classes="icoline" Data="{StaticResource IcoRepeatOne}" IsVisible="{Binding RepeatOne}"/>
+                </Panel>
+              </Button>
+            </StackPanel>
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Left" Text="{Binding TimePosText}" FontSize="11" Foreground="{DynamicResource ZbsTextMuted}"
+                         VerticalAlignment="Center" Margin="0,0,10,0" MinWidth="34" TextAlignment="Right"/>
+              <TextBlock DockPanel.Dock="Right" Text="{Binding TimeDurText}" FontSize="11" Foreground="{DynamicResource ZbsTextMuted}"
+                         VerticalAlignment="Center" Margin="10,0,0,0" MinWidth="34"/>
+              <Panel>
+                <ctl:WaveformControl x:Name="WaveBar" Height="26" Margin="6,0"
+                                     Progress="{Binding WaveProgress}"
+                                     IsVisible="{Binding WaveformVisible}" IsHitTestVisible="False"/>
+                <Slider Minimum="0" Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
+                        VerticalAlignment="Center"/>
+              </Panel>
+            </DockPanel>
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+            <Button Classes="abpill" Classes.active="{Binding AbActive}" Content="{Binding AbGlyph}"
+                    Command="{Binding AbLoopCommand}" ToolTip.Tip="{Binding AbTip}"/>
+            <Button Classes="flat" Command="{Binding CycleSpeedCommand}" Padding="10,0" Height="30"
+                    CornerRadius="8" IsEnabled="{Binding SpeedSupported}" ToolTip.Tip="{Binding SpeedTip}">
+              <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SpeedNumText}" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+                <TextBlock Text="×" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Classes="mode" Classes.active="{Binding LyricsOpen}" Command="{Binding ToggleLyricsCommand}"
+                    IsVisible="{Binding IsNowPlaying}" ToolTip.Tip="{Binding TextBtnText}">
+              <Path Classes="icoline" Data="{StaticResource IcoText}"/>
+            </Button>
+            <Path Classes="icoline" Data="{StaticResource IcoVol}" Width="17" Height="17" VerticalAlignment="Center"/>
+            <Slider Width="96" Minimum="0" Maximum="1" Value="{Binding Volume}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- ═══════════════════════ КОМПАКТ (винамп-мини) ═══════════════════════ -->
+    <Border IsVisible="{Binding IsCompact}" Padding="14,12" VerticalAlignment="Top">
+      <StackPanel Spacing="10">
+
+        <!-- Обложка + название/исполнитель + развернуть -->
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Classes="icon" Width="32" Height="32" VerticalAlignment="Top"
+                  Command="{Binding ExpandCommand}" ToolTip.Tip="{Binding MiniTipText}">
+            <Path Classes="icoline" Data="{StaticResource IcoExpand}" Width="15" Height="15"/>
+          </Button>
+          <Border DockPanel.Dock="Left" Width="58" Height="58" CornerRadius="9" ClipToBounds="True"
+                  Background="{DynamicResource ZbsSurface2}" Margin="0,0,12,0">
+            <Panel>
+              <TextBlock Text="♫" FontSize="22" Foreground="{DynamicResource ZbsGhost}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <Image Source="{Binding Cover}" Stretch="UniformToFill"/>
+            </Panel>
+          </Border>
+          <StackPanel VerticalAlignment="Center" Spacing="1">
+            <TextBlock Text="{Binding MiniTitle}" FontSize="14.5" FontWeight="Bold"
+                       Foreground="{DynamicResource ZbsText}" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding MiniSubtitle}" FontSize="11.5" Foreground="{DynamicResource ZbsTextMuted}"
+                       TextTrimming="CharacterEllipsis"/>
+            <ctl:SpectrumControl x:Name="VizCompactBar" Height="13" Width="120" BarCount="14"
+                                 HorizontalAlignment="Left" Margin="0,3,0,0"
+                                 IsVisible="{Binding VizCompactVisible}"/>
+          </StackPanel>
+        </DockPanel>
+
+        <!-- Перемотка: время — рельса — время -->
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Left" Text="{Binding TimePosText}" FontSize="11" Foreground="{DynamicResource ZbsTextMuted}"
+                     VerticalAlignment="Center" Margin="0,0,9,0"/>
+          <TextBlock DockPanel.Dock="Right" Text="{Binding TimeDurText}" FontSize="11" Foreground="{DynamicResource ZbsTextMuted}"
+                     VerticalAlignment="Center" Margin="9,0,0,0"/>
+          <Slider Minimum="0" Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"/>
+        </DockPanel>
+
+        <!-- Контролы -->
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <Button Classes="mode" Width="34" Height="34" Classes.active="{Binding ShuffleActive}"
+                  Command="{Binding ShuffleCommand}">
+            <Path Classes="icoline" Data="{StaticResource IcoShuffle}" Width="16" Height="16"/>
+          </Button>
+          <Button Classes="mode" Width="34" Height="34" Classes.active="{Binding RepeatActive}"
+                  Command="{Binding RepeatCommand}">
+            <Panel>
+              <Path Classes="icoline" Data="{StaticResource IcoRepeat}" Width="16" Height="16" IsVisible="{Binding !RepeatOne}"/>
+              <Path Classes="icoline" Data="{StaticResource IcoRepeatOne}" Width="16" Height="16" IsVisible="{Binding RepeatOne}"/>
+            </Panel>
+          </Button>
+          <Border Width="1" Height="20" Background="{DynamicResource ZbsLine}" Margin="4,0" VerticalAlignment="Center"/>
+          <Button Classes="mode" Width="36" Height="36" Command="{Binding PreviousCommand}">
+            <Path Classes="ico" Data="{StaticResource IcoPrev}" Width="17" Height="17"/>
+          </Button>
+          <Button Classes="transport play" Width="44" Height="44" Command="{Binding PlayPauseCommand}">
+            <Panel Width="20" Height="20">
+              <Path Classes="ico" Data="{StaticResource IcoPlay}" Width="17" Height="17"
+                    IsVisible="{Binding !IsPlaying}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Margin="3,0,0,0"/>
+              <Path Classes="ico" Data="{StaticResource IcoPause}" Width="16" Height="16"
+                    IsVisible="{Binding IsPlaying}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Panel>
+          </Button>
+          <Button Classes="mode" Width="36" Height="36" Command="{Binding NextCommand}">
+            <Path Classes="ico" Data="{StaticResource IcoNext}" Width="17" Height="17"/>
+          </Button>
+          <Button Classes="mode" Width="36" Height="36" Command="{Binding StopCommand}">
+            <Path Classes="ico" Data="{StaticResource IcoStop}" Width="15" Height="15"/>
+          </Button>
+          <Border Width="1" Height="20" Background="{DynamicResource ZbsLine}" Margin="4,0" VerticalAlignment="Center"/>
+          <Button Classes="abpill" Height="28" Content="{Binding AbGlyph}" Classes.active="{Binding AbActive}"
+                  Command="{Binding AbLoopCommand}"/>
+          <Button Classes="mode" Width="34" Height="34">
+            <Button.Flyout>
+              <Flyout Placement="Top">
+                <Slider Width="150" Minimum="0" Maximum="1" Value="{Binding Volume}"/>
+              </Flyout>
+            </Button.Flyout>
+            <Path Classes="icoline" Data="{StaticResource IcoVol}" Width="16" Height="16"/>
+          </Button>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- M4: поверхность libmpv. В дереве постоянно; IsVisible прячет нативное окно,
+         не разрушая HWND. Геометрию рулит code-behind (UpdateVideoOverlay). -->
+    <ctl:VideoHost x:Name="VideoSurface" IsVisible="False"
+                   IsHitTestVisible="False"/>
+  </Panel>
+</Window>
