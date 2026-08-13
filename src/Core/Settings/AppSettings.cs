@@ -98,6 +98,9 @@ public sealed class AppSettings
     public string LastfmSessionKey { get; set; } = "";
     public string LastfmUser { get; set; } = "";
 
+    // Токен Я.Музыки для поиска текстов (шифруется DPAPI при сохранении).
+    public string YandexMusicToken { get; set; } = "";
+
     /// <summary>Загружать плагины из папки plugins рядом с приложением. По умолчанию ВЫКЛ (сторонний код).</summary>
     public bool PluginsEnabled { get; set; }
 

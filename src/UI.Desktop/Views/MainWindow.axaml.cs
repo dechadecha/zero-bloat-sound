@@ -107,11 +107,12 @@ public partial class MainWindow : Window
         // Магнит: дебаунс-снап — примагничиваемся, когда окно на миг остановилось (пауза/отпустил),
         // а не дёргаемся на каждом событии перетаскивания (иначе дрались бы с ОС и не липло).
         PositionChanged += OnPositionChanged;
-        // AIMP-стайл автоскрытие к верхней кромке: наведение возвращает, уход/клик мимо — прячет.
-        PointerEntered += (_, _) => { if (Vm?.EdgeAutoHideOn == true) ExpandFromTop(); };
-        PointerExited += (_, _) => { if (AutoHideActive) CollapseToTop(); };
-        Activated += (_, _) => { if (Vm?.EdgeAutoHideOn == true) ExpandFromTop(); };
-        Deactivated += (_, _) => { Vm?.SaveSettings(); if (AutoHideActive) CollapseToTop(); };
+        // Авто-скрытие к верхней кромке запарковано: оно пряталось на любой уход курсора и
+        // не давало вернуть окно (нет видимой «стрелки» как у Winamp). Вернём как отдельную
+        // фичу с явной ручкой-возвратом. Пока — только expand-страховка, чтобы окно не залипло.
+        PointerEntered += (_, _) => ExpandFromTop();
+        Activated += (_, _) => ExpandFromTop();
+        Deactivated += (_, _) => Vm?.SaveSettings();
         // M4: HWND может создаться и до, и после DataContext — покрываем оба порядка.
         VideoSurface.SurfaceCreated += h => Vm?.VideoSurfaceSetter?.Invoke(h);
         // Правый клик выделяет строку под курсором: иначе контекст-меню оценивало СТАРОЕ выделение.
@@ -437,6 +438,16 @@ public partial class MainWindow : Window
         {
             h = Math.Max(_savedHeight, 520);
             if (_compactBy == "width") w = Math.Max(_savedWidth, 940);
+        }
+        // Окно растянуто почти на весь экран (drag «в край» / псевдо-максимайз) — не даём
+        // этому гигантскому размеру прилипнуть как дефолт при следующем старте.
+        var scr = Screens.ScreenFromWindow(this);
+        if (scr is not null)
+        {
+            var scale = scr.Scaling <= 0 ? 1.0 : scr.Scaling;
+            var maxW = scr.WorkingArea.Width / scale;
+            var maxH = scr.WorkingArea.Height / scale;
+            if (w >= maxW - 16 || h >= maxH - 16) return;
         }
         Vm.RememberWindowSize(w, h);
     }

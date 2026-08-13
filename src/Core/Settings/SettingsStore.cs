@@ -42,6 +42,7 @@ public sealed class SettingsStore
                 var loaded = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
                 loaded.LastfmSessionKey = Unprotect(loaded.LastfmSessionKey); // расшифровать креды
                 loaded.LastfmApiSecret = Unprotect(loaded.LastfmApiSecret);
+                loaded.YandexMusicToken = Unprotect(loaded.YandexMusicToken);
                 return loaded;
             }
         }
@@ -56,11 +57,13 @@ public sealed class SettingsStore
     {
         var plainKey = settings.LastfmSessionKey;
         var plainSecret = settings.LastfmApiSecret;
+        var plainYa = settings.YandexMusicToken;
         try
         {
             // Оба Last.fm-credential на диск — зашифрованными DPAPI (session key бессрочен, secret — тоже секрет).
             settings.LastfmSessionKey = Protect(plainKey);
             settings.LastfmApiSecret = Protect(plainSecret);
+            settings.YandexMusicToken = Protect(plainYa); // токен Я.Музыки — тоже секрет
             File.WriteAllText(_path, JsonSerializer.Serialize(settings, JsonOpts));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -71,6 +74,7 @@ public sealed class SettingsStore
         {
             settings.LastfmSessionKey = plainKey; // в памяти держим расшифрованным
             settings.LastfmApiSecret = plainSecret;
+            settings.YandexMusicToken = plainYa;
         }
     }
 

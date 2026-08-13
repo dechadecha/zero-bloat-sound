@@ -70,6 +70,22 @@ public static class TagReader
         }
     }
 
+    /// <summary>Пишет текст песни в тег (USLT). true — успех.</summary>
+    public static bool WriteLyrics(string filePath, string text)
+    {
+        try
+        {
+            using var file = TagLib.File.Create(filePath);
+            file.Tag.Lyrics = text;
+            file.Save();
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     private static readonly System.Text.RegularExpressions.Regex UrlRe = new(
         @"https?://\S+", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 

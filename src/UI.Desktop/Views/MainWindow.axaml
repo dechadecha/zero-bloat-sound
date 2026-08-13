@@ -571,10 +571,20 @@
               </StackPanel>
               <Border Grid.Column="1" Width="330" Margin="12,44,6,6" IsVisible="{Binding LyricsOpen}">
                 <Panel>
-                  <ScrollViewer IsVisible="{Binding LyricsPlain}">
+                  <ScrollViewer IsVisible="{Binding ShowPlainLyrics}">
                     <TextBlock Text="{Binding LyricsText}" TextWrapping="Wrap" FontSize="15" LineHeight="28"
                                Foreground="{DynamicResource ZbsText}" Margin="8,4"/>
                   </ScrollViewer>
+                  <!-- Нет текста: кнопка поиска + статус -->
+                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12"
+                              IsVisible="{Binding !HasLyrics}">
+                    <TextBlock Text="У этого трека нет текста" HorizontalAlignment="Center"
+                               Foreground="{DynamicResource ZbsTextMuted}" FontSize="13"/>
+                    <Button Classes="genre" HorizontalAlignment="Center" Command="{Binding FetchLyricsCommand}"
+                            IsVisible="{Binding NeedsLyrics}" Content="Найти текст"/>
+                    <TextBlock Text="{Binding LyricsFetchStatus}" HorizontalAlignment="Center"
+                               IsVisible="{Binding HasFetchStatus}" Foreground="{DynamicResource ZbsAccent}" FontSize="13"/>
+                  </StackPanel>
                   <!-- Караоке (.lrc): текущая строка акцентом, автоскролл в код-бихайнде -->
                   <ScrollViewer x:Name="KaraokeScroll" IsVisible="{Binding LyricsSynced}">
                     <ItemsControl x:Name="KaraokeItems" ItemsSource="{Binding KaraokeLines}" Margin="8,4">
@@ -775,6 +785,16 @@
                     </StackPanel>
                     <TextBlock Text="{Binding LastfmStatus}" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}"
                                TextWrapping="Wrap"/>
+                    <TextBlock Text="ТЕКСТЫ ПЕСЕН" FontSize="11" FontWeight="Bold" LetterSpacing="1.5"
+                               Foreground="{DynamicResource ZbsTextMuted}" Margin="0,14,0,0"/>
+                    <TextBlock FontSize="12" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"
+                               Text="Кнопка «Найти текст» в Обзоре ищет слова песни в открытых базах (LRCLIB, NetEase, Genius) — токен не нужен. Для лучшего покрытия русского можно добавить свой токен Я.Музыки (Плюс)."/>
+                    <StackPanel Spacing="6" MaxWidth="440" HorizontalAlignment="Left">
+                      <TextBox Text="{Binding YandexToken}" FontSize="12" PasswordChar="•"
+                               Watermark="Токен Я.Музыки (необязательно)"/>
+                      <TextBlock FontSize="11" Foreground="{DynamicResource ZbsTextMuted}" TextWrapping="Wrap"
+                                 Text="Как получить: открой oauth.yandex.ru/authorize?response_type=token&amp;client_id=23cabbbdc6cd418abb4b39c32c41195d — залогинься, и из адресной строки скопируй значение access_token. Хранится локально в зашифрованном виде."/>
+                    </StackPanel>
                     <DockPanel Margin="0,8,0,0">
                       <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding PluginsOn}"/>
                       <TextBlock Text="Плагины: загружать из папки plugins" Foreground="{DynamicResource ZbsText}"
@@ -891,14 +911,6 @@
                       </StackPanel>
                     </DockPanel>
                     <DockPanel Margin="0,6">
-                      <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding EdgeAutoHideOn}"/>
-                      <StackPanel>
-                        <TextBlock Text="Прятать к верхней кромке (AIMP)" Foreground="{DynamicResource ZbsText}" FontSize="13.5"/>
-                        <TextBlock Text="Прилипшее к верху окно уезжает вверх; наведение на кромку возвращает. Нужен магнит."
-                                   Foreground="{DynamicResource ZbsTextMuted}" FontSize="11.5" TextWrapping="Wrap"/>
-                      </StackPanel>
-                    </DockPanel>
-                    <DockPanel Margin="0,6">
                       <ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding WaveformOn}"/>
                       <TextBlock Text="{Binding WaveformLblText}" Foreground="{DynamicResource ZbsText}" FontSize="13.5" VerticalAlignment="Center"/>
                     </DockPanel>
@@ -951,6 +963,12 @@
 
                   <TextBlock IsVisible="{Binding TileIsStub}" Text="{Binding TileStubText}"
                              Foreground="{DynamicResource ZbsTextMuted}" FontSize="14" TextWrapping="Wrap" LineHeight="24" Margin="0,6"/>
+                  <StackPanel IsVisible="{Binding TileIsUpdates}" Spacing="10" Margin="0,10,0,0" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding AppVersionText}" FontSize="13" Foreground="{DynamicResource ZbsTextMuted}"/>
+                    <Button Classes="genre" Content="Проверить обновления" Command="{Binding CheckUpdatesCommand}"/>
+                    <TextBlock Text="{Binding UpdateStatus}" FontSize="13" Foreground="{DynamicResource ZbsAccent}"
+                               TextWrapping="Wrap" IsVisible="{Binding UpdateStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                  </StackPanel>
                 </StackPanel>
               </ScrollViewer>
             </DockPanel>
@@ -1035,7 +1053,8 @@
                 <TextBlock Text="×" FontSize="12" Foreground="{DynamicResource ZbsTextMuted}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Classes="mode" Classes.active="{Binding LyricsOpen}" Command="{Binding ToggleLyricsCommand}"
+            <Button Classes="mode" Classes.haslyrics="{Binding HasLyrics}"
+                    Command="{Binding ToggleLyricsCommand}"
                     IsVisible="{Binding IsNowPlaying}" ToolTip.Tip="{Binding TextBtnText}">
               <Path Classes="icoline" Data="{StaticResource IcoText}"/>
             </Button>

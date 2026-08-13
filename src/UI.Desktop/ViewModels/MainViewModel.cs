@@ -106,6 +106,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             if (!Set(ref _mode, value)) return;
             Raise(nameof(IsBrowse));
             Raise(nameof(IsNowPlaying));
+            Raise(nameof(NeedsLyrics));
             Raise(nameof(IsSettings));
             Raise(nameof(IsSettingsDetail));
             Raise(nameof(SidebarVisible));
@@ -257,12 +258,41 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private int _lyricsGeneration;
 
+    // Есть ли у текущего трека текст (тег/.lrc) — для зелёной подсветки кнопки текста.
+    private int _hasLyricsGeneration;
+    private bool _hasLyrics;
+    public bool HasLyrics
+    {
+        get => _hasLyrics;
+        private set { if (Set(ref _hasLyrics, value)) { Raise(nameof(NeedsLyrics)); Raise(nameof(ShowPlainLyrics)); } }
+    }
+
+    private async Task UpdateHasLyricsAsync(Track? track)
+    {
+        var generation = ++_hasLyricsGeneration;
+        if (track is null) { HasLyrics = false; return; }
+        var path = track.FilePath;
+        var has = await Task.Run(() =>
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(LrcParser.ReadSidecar(path))) return true;
+                return !string.IsNullOrWhiteSpace(TagReader.ReadLyrics(path));
+            }
+            catch { return false; }
+        });
+        if (generation != _hasLyricsGeneration) return; // быстрый Next обогнал — не перетираем
+        HasLyrics = has;
+    }
+
     private IReadOnlyList<LrcLine>? _syncedLyrics;
     private int _syncedIndex = -1;
 
     public IReadOnlyList<KaraokeLine> KaraokeLines { get; private set; } = Array.Empty<KaraokeLine>();
     public bool LyricsSynced => _syncedLyrics is not null;
     public bool LyricsPlain => _syncedLyrics is null;
+    /// <summary>Текст-панель показываем только когда текст реально есть — иначе поверх идёт «Найти текст».</summary>
+    public bool ShowPlainLyrics => _syncedLyrics is null && _hasLyrics;
 
     /// <summary>Вьюха скроллит подсвеченную строку в центр.</summary>
     public event Action<int>? KaraokeLineChanged;
@@ -295,6 +325,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Raise(nameof(KaraokeLines));
             Raise(nameof(LyricsSynced));
             Raise(nameof(LyricsPlain));
+            Raise(nameof(ShowPlainLyrics)); // спрятать белый текст, если он был от прошлого трека
             SyncKaraoke(); // сразу подсветить строку на текущей позиции
         }
         else
@@ -311,6 +342,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Raise(nameof(KaraokeLines));
         Raise(nameof(LyricsSynced));
         Raise(nameof(LyricsPlain));
+        Raise(nameof(ShowPlainLyrics));
         LyricsText = text;
     }
 
@@ -417,6 +449,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         {
             var year = TagReader.Read(track.FilePath).Year;
             var lyrics = TagReader.ReadLyrics(track.FilePath);
+            if (lyrics is not null) lyrics = LrcParser.StripTimestamps(lyrics); // теги с LRC — без [mm:ss]
             Dispatcher.UIThread.Post(() =>
             {
                 if (generation != _detailGeneration) return;
@@ -477,6 +510,37 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public bool TileIsLook => _settingsTile == "look";
     public bool TileIsNet => _settingsTile == "net";
     public bool TileIsStub => _settingsTile is "keys" or "upd" or "";
+    public bool TileIsUpdates => _settingsTile == "upd";
+
+    public string AppVersionText => "Текущая версия: " +
+        (System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0");
+
+    private string _updateStatus = "";
+    public string UpdateStatus { get => _updateStatus; private set => Set(ref _updateStatus, value); }
+    public RelayCommand CheckUpdatesCommand { get; private set; } = null!;
+
+    private async Task CheckUpdatesAsync()
+    {
+        UpdateStatus = "Проверяю…";
+        try
+        {
+            using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get,
+                "https://api.github.com/repos/dechadecha/zero-bloat-sound/releases/latest");
+            req.Headers.TryAddWithoutValidation("User-Agent", "ZBS-updater");
+            req.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
+            using var resp = await _lyricsHttp.SendAsync(req);
+            if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+            { UpdateStatus = "Релизов пока нет — следи за страницей GitHub."; return; }
+            if (!resp.IsSuccessStatusCode)
+            { UpdateStatus = $"Не удалось проверить (код {(int)resp.StatusCode})."; return; }
+            using var doc = System.Text.Json.JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            var tag = doc.RootElement.TryGetProperty("tag_name", out var t) ? t.GetString() : null;
+            UpdateStatus = string.IsNullOrEmpty(tag)
+                ? "Релизов пока нет."
+                : $"Последний релиз на GitHub: {tag}. Текущая: {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
+        }
+        catch { UpdateStatus = "Не удалось проверить обновления (нет сети?)."; }
+    }
 
     // ---- M3.2: эквалайзер (10 полос + пресеты, вкл. «АУФ») ----
 
@@ -1158,6 +1222,59 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         Podcasts?.RefreshAllBindings();
     }
 
+    // ---- Поиск текстов песен (lrclib/NetEase/Genius + Яндекс по токену) ----
+    private static readonly System.Net.Http.HttpClient _lyricsHttp =
+        new() { Timeout = TimeSpan.FromSeconds(20) };
+    private readonly ZBS.Core.Lyrics.LyricsFetcher _fetcher;
+
+    private bool _lyricsFetchBusy;
+    public bool LyricsFetchBusy
+    {
+        get => _lyricsFetchBusy;
+        private set { if (Set(ref _lyricsFetchBusy, value)) Raise(nameof(NeedsLyrics)); }
+    }
+    private string _lyricsFetchStatus = "";
+    public string LyricsFetchStatus { get => _lyricsFetchStatus; private set => Set(ref _lyricsFetchStatus, value); }
+    public bool HasFetchStatus => !string.IsNullOrEmpty(_lyricsFetchStatus);
+    /// <summary>Кнопка «Найти текст» видна, когда в Обзоре у трека нет текста и не идёт поиск.</summary>
+    public bool NeedsLyrics => IsNowPlaying && !HasLyrics && !LyricsFetchBusy;
+    public RelayCommand FetchLyricsCommand { get; private set; } = null!;
+
+    private async Task FetchCurrentLyricsAsync()
+    {
+        if (LyricsFetchBusy) return;
+        var idx = _engine.CurrentIndex;
+        if (idx < 0 || idx >= Tracks.Count) return;
+        var path = Tracks[idx].FilePath;
+        LyricsFetchBusy = true;
+        LyricsFetchStatus = "Ищу текст…"; Raise(nameof(HasFetchStatus));
+        try
+        {
+            var (artist, title, album, dur) = await Task.Run(() =>
+            {
+                var t = TagReader.Read(path);
+                string a = t.Artist ?? "", ti = t.Title ?? "";
+                if (a.Length == 0 || ti.Length == 0)
+                {
+                    var (fa, ft) = MetadataResolver.SplitArtistTitle(TagReader.CleanFileName(path));
+                    if (a.Length == 0) a = fa ?? "";
+                    if (ti.Length == 0) ti = ft ?? "";
+                }
+                return (a, ti, t.Album, (int)Math.Round(t.DurationSeconds));
+            });
+            var res = await _fetcher.FetchAsync(artist, title, album, dur);
+            if (res is not null && TagReader.WriteLyrics(path, res.Text))
+            {
+                LyricsFetchStatus = res.Synced ? "Готово — караоке" : "Готово — текст";
+                HasLyrics = true;
+                if (LyricsOpen) await LoadLyricsAsync();
+            }
+            else LyricsFetchStatus = "Текст не найден";
+        }
+        catch { LyricsFetchStatus = "Не удалось найти текст"; }
+        finally { LyricsFetchBusy = false; Raise(nameof(HasFetchStatus)); }
+    }
+
     // ---- M6: Last.fm скробблинг ----
 
     private readonly ZBS.Core.Integrations.LastFmScrobbler _lastfm = new();
@@ -1180,6 +1297,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         get => _settings.LastfmApiKey;
         set { _settings.LastfmApiKey = value.Trim(); _lastfm.ApiKey = _settings.LastfmApiKey; Raise(); }
+    }
+
+    /// <summary>Токен Я.Музыки для поиска текстов (шифруется на диске DPAPI).</summary>
+    public string YandexToken
+    {
+        get => _settings.YandexMusicToken;
+        set { _settings.YandexMusicToken = value?.Trim() ?? ""; _store.Save(_settings); Raise(); }
     }
 
     public string LastfmApiSecret
@@ -1683,6 +1807,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             LyricsOpen = !LyricsOpen;
             if (LyricsOpen) _ = LoadLyricsAsync();
         });
+        _fetcher = new ZBS.Core.Lyrics.LyricsFetcher(_lyricsHttp, () => _settings.YandexMusicToken);
+        FetchLyricsCommand = new RelayCommand(() => _ = FetchCurrentLyricsAsync());
+        CheckUpdatesCommand = new RelayCommand(() => _ = CheckUpdatesAsync());
         PlayQueueItemCommand = new ParamRelayCommand(p =>
         {
             if (int.TryParse(p?.ToString(), out var index)) _engine.PlayAt(index);
@@ -1700,6 +1827,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             Raise(nameof(TileIsLook));
             Raise(nameof(TileIsNet));
             Raise(nameof(TileIsStub));
+            Raise(nameof(TileIsUpdates));
+            UpdateStatus = ""; // сброс статуса при входе в плитку
             Mode = UiMode.SettingsDetail;
         });
         EqPresetCommand = new ParamRelayCommand(p => ApplyEqPreset(p?.ToString() ?? ""));
@@ -2137,6 +2266,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         // Титры перезагружаем независимо от режима: панель могла остаться открытой,
         // пока пользователь в списке — иначе по возвращении караоке едет по чужому тексту.
         if (LyricsOpen) _ = LoadLyricsAsync();
+        _ = UpdateHasLyricsAsync(track); // зелёная/серая кнопка текста
+        LyricsFetchStatus = ""; Raise(nameof(HasFetchStatus)); // сброс статуса поиска на новый трек
         UpdateDiscord(); // «слушает …» в профиле
         _trackStartedAt = DateTimeOffset.UtcNow;
         LastfmNowPlaying(track);

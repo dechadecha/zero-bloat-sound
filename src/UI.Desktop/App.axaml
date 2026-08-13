@@ -136,6 +136,10 @@
     <Style Selector="Button.mode.active">
       <Setter Property="Foreground" Value="{DynamicResource ZbsAccent}"/>
     </Style>
+    <!-- Кнопка текста: зелёная иконка, когда у трека есть текст (тег/.lrc), иначе серая. -->
+    <Style Selector="Button.mode.haslyrics Path.icoline">
+      <Setter Property="Stroke" Value="{DynamicResource ZbsAccent}"/>
+    </Style>
 
     <!-- Иконка-кнопка (развернуть/свернуть в шапке) -->
     <Style Selector="Button.icon">
